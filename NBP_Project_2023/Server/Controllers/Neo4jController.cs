@@ -11,9 +11,9 @@ namespace NBP_Project_2023.Server.Controllers
     {
         private readonly IDriver _driver;
 
-        public Neo4jController()
+        public Neo4jController(IDriver driver)
         {
-            _driver = GraphDatabase.Driver("bolt://localhost:7687", AuthTokens.Basic("neo4j", "password"));
+            _driver = driver;
         }
 
         [HttpPost]
@@ -25,7 +25,8 @@ namespace NBP_Project_2023.Server.Controllers
             { { "name", name } };
 
             var session = this._driver.AsyncSession();
-            var result = await session.WriteTransactionAsync(tx => tx.RunAsync(statementText.ToString(), statementParameters));
+            // var result = await session.WriteTransactionAsync(tx => tx.RunAsync(statementText.ToString(), statementParameters));
+            var result = await session.ExecuteWriteAsync(tx => tx.RunAsync(statementText.ToString(), statementParameters));
             return StatusCode(201, "Node has been created in the database.");
         }
     }

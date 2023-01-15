@@ -1,12 +1,25 @@
-using Microsoft.AspNetCore.ResponseCompression;
+using NBP_Project_2023.Shared;
+using Neo4j.Driver;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
+
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 builder.Services.AddSwaggerGen();
+builder.Services.AddSingleton(GraphDatabase.Driver(
+    ConnectionSetup.NEO4J_URI,
+    AuthTokens.Basic(
+        ConnectionSetup.NEO4J_USER,
+        ConnectionSetup.NEO4J_PASSWORD
+    )
+));
+builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(
+    ConnectionSetup.REDIS_URI
+));
 
 var app = builder.Build();
 
