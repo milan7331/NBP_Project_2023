@@ -13,6 +13,7 @@ namespace NBP_Project_2023.Shared
         public int PostalCode { get; set; }
         public double PostXCoordinate { get; set; }
         public double PostYCoordinate { get; set; }
+        public bool IsMainPostOffice { get; set; } = false;
         public List<Courier> Workers { get; set; } = new List<Courier>();
         public List<Package> Packages { get; set; } = new List<Package>();
     }
