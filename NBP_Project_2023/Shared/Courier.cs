@@ -8,11 +8,18 @@ namespace NBP_Project_2023.Shared
 {
     public class Courier
     {
+        public enum Status
+        {
+            Away = 0,
+            Available = 1,
+            Busy = 2
+        }
+        
         public int Id { get; set; }
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
-        public enum Status { Active, Inactive }
+        public string CourierStatus { get; set; } = Status.Available.ToString(); 
         public int WorksAt { get; set; } //PostId drugim rečima
-        public List<Package> Packages { get; set; } = new List<Package>();
+        public List<string> Packages { get; set; } = new List<string>(); //PackageID
     }
 }

@@ -16,3 +16,5 @@ namespace NBP_Project_2023.Server.Controllers
         }
     }
 }
+// IZ POŠTEMOŽE SAMO U POŠTU U DRUGOM GRADU
+// KURIR INAČE MOZEŽ DA URADI TAKE PACKAGE I LEAVE PACKAGE??

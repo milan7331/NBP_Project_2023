@@ -8,10 +8,10 @@
         public string Description { get; set; } = string.Empty;
         public float Weight { get; set; }
         public int Price { get; set; }
-        public UserAccount Sender { get; set; }
-        public UserAccount Receiver { get; set; }
+        public int Sender { get; set; } //UserAccount Id
+        public int Receiver { get; set; } //UserAccount Id
         public string Status { get; set; } = string.Empty;
-        public DateTime PostArrivalDate { get; set; }
+        public DateTime EstimatedArrivalDate { get; set; }
         public int Location { get; set; } // PostId - PostalCode
     }
 }
