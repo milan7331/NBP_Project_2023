@@ -1,24 +1,24 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Neo4j.Driver;
 using NBP_Project_2023.Shared;
-using System.Collections.Generic;
 
 namespace NBP_Project_2023.Server.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class PostController : ControllerBase
+    public class PostOfficeController : ControllerBase
     {
         private readonly IDriver _driver;
 
-        public PostController(IDriver driver)
+        public PostOfficeController(IDriver driver)
         {
             _driver = driver;
         }
 
         [Route("CreatePostOffice")]
         [HttpPost]
-        public async Task<IActionResult> CreatePostOffice(PostOffice post)
+        public async Task<IActionResult> CreatePostOffice(PostOffice Post)
         {
             IAsyncSession session = _driver.AsyncSession();
             int result;
@@ -28,19 +28,16 @@ namespace NBP_Project_2023.Server.Controllers
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
                         MERGE (p:PostOffice {PostalCode: $PostalCode})
-                        SET p.City = $City
+                        SET p.City = '$City'
                         SET p.X = $PostX
                         SET p.Y = $PostY
                         SET p.IsMainPostOffice = $IsMainPostOffice
-                    ", new { post.City, post.PostalCode, post.PostX, post.PostY, post.IsMainPostOffice });
+                    ", new { Post.PostalCode, Post.City, Post.PostX, Post.PostY, Post.IsMainPostOffice });
                     IResultSummary summary = await cursor.ConsumeAsync();
                     return summary.Counters.NodesCreated;
                 });
             }
-            finally
-            {
-                await session.CloseAsync();
-            }
+            finally { await session.CloseAsync(); }
             if (result > 0) return Ok("Node created successfully!");
             else return BadRequest("Node creation (Post) failed!");
         }
@@ -54,30 +51,30 @@ namespace NBP_Project_2023.Server.Controllers
             int result;
             try
             {
-                double x1 = 0;
-                double y1 = 0;
-                double x2 = 0;
-                double y2 = 0;
-                double distance = await session.ExecuteReadAsync(async tx =>
+                float x1 = 0.0f;
+                float y1 = 0.0f;
+                float x2 = 0.0f;
+                float y2 = 0.0f;
+                float distance = await session.ExecuteReadAsync(async tx =>
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
-                        MATCH (p1: POST {PostalCode: $PostalCode1})
-                        MATCH (p2: POST {PostalCode: $PostalCode2})
+                        MATCH (p1:PostOffice {PostalCode: $PostalCode1})
+                        MATCH (p2:PostOffice {PostalCode: $PostalCode2})
                         RETURN p1.X as x1, p1.Y as y1, p2.X as x2, p2.Y as y2
                     ", new { PostalCode1, PostalCode2 });
-                    List<IRecord> records = await cursor.ToListAsync();
+                    IRecord record = await cursor.SingleAsync();
 
-                    x1 = records.Select(x => x["x1"].As<double>()).First();  //FirstOrDefault????
-                    y1 = records.Select(x => x["y1"].As<double>()).First();
-                    x2 = records.Select(x => x["x2"].As<double>()).First();
-                    y2 = records.Select(x => x["y2"].As<double>()).First();
+                    x1 = record["x1"].As<float>();
+                    y1 = record["y1"].As<float>();
+                    x2 = record["x2"].As<float>();
+                    y2 = record["y2"].As<float>();
 
-                    double dist = Math.Pow(x2 - x1, 2) + Math.Pow(y2 - y1, 2);
-                    dist = Math.Sqrt(dist);
+                    float dist = (float)(Math.Pow(x2 - x1, 2) + Math.Pow(y2 - y1, 2));
+                    dist = (float)Math.Sqrt(dist);
                     return dist;
                 });
 
-                if (x1 == 0.0 || y1 == 0.0 || x2 == 0.0 || y2 == 0.0)
+                if (x1 == 0.0f || y1 == 0.0f || x2 == 0.0f || y2 == 0.0f)
                     return BadRequest("Missing coordinates!");
 
                 result = await session.ExecuteWriteAsync(async tx =>
@@ -106,9 +103,13 @@ namespace NBP_Project_2023.Server.Controllers
             {
                 result = await session.ExecuteReadAsync(async tx =>
                 {
-                    IResultCursor cursor = await tx.RunAsync("MATCH (node:PostOffice {PostalCode:" + PostalCode + "}) RETURN node");
+                    IResultCursor cursor = await tx.RunAsync(@"
+                        MATCH (p:PostOffice)
+                        WHERE p.PostalCode = $PostalCode
+                        RETURN p
+                    ", new { PostalCode });
                     IRecord record = await cursor.SingleAsync();
-                    return record["node"].As<INode>();
+                    return record["p"].As<INode>();
                 });
             }
             finally { await session.CloseAsync(); }
@@ -119,8 +120,8 @@ namespace NBP_Project_2023.Server.Controllers
                     Id = Int32.Parse(result.ElementId),
                     City = result.Properties["City"].ToString() ?? "",
                     PostalCode = (int)result.Properties["PostalCode"],
-                    PostX = (double)result.Properties["X"],
-                    PostY = (double)result.Properties["Y"],
+                    PostX = (float)result.Properties["X"],
+                    PostY = (float)result.Properties["Y"],
                     IsMainPostOffice = (bool)result.Properties["IsMainPostOffice"]
                 });
             }
@@ -137,16 +138,16 @@ namespace NBP_Project_2023.Server.Controllers
             {
                 ListOfWorkers = await session.ExecuteReadAsync(async tx =>
                 {
-                    IResultCursor result = await tx.RunAsync("MATCH (:PostOffice {PostalCode:" + PostalCode + "})-[:WorksAt]-(c:Courier) RETURN ID(c) AS cid");
+                    IResultCursor result = await tx.RunAsync(@"
+                        MATCH (:PostOffice {PostalCode:" + PostalCode + "})-[:WorksAt]-(c:Courier) RETURN ID(c) AS id");
                     List<IRecord> resultsList = await result.ToListAsync();
 
-                    List<int> workers = new List<int>();
+                    List<int> workers = new();
                     if (resultsList.Count > 0)
                     {
                         foreach (var x in resultsList)
                         {
-                            string cid = x["cid"].As<string>();
-                            workers.Add(Int32.Parse(cid));
+                            workers.Add(x["id"].As<int>());
                         }
                     }
                     return workers;
@@ -166,15 +167,16 @@ namespace NBP_Project_2023.Server.Controllers
             {
                 ListOfPackages = await session.ExecuteReadAsync(async tx =>
                 {
-                    IResultCursor result = await tx.RunAsync("MATCH (:PostOffice {PostalCode:" + PostalCode + "})-[]-(p:Package) RETURN p.PackageID AS pid");
+                    IResultCursor result = await tx.RunAsync(@"
+                        MATCH (:PostOffice {PostalCode:" + PostalCode + "})-[]-(p:Package) RETURN p.PackageID AS pid");
                     List<IRecord> resultsList = await result.ToListAsync();
 
-                    List<string> packages = new List<string>();
+                    List<string> packages = new();
                     if (resultsList.Count > 0)
                     {
                         foreach (var x in resultsList)
                         {
-                            string pid = x["pid"].ToString() ?? "";
+                            string pid = x["pid"].As<string>();
                             packages.Add(pid);
                         }
                     }
@@ -187,7 +189,7 @@ namespace NBP_Project_2023.Server.Controllers
 
         [Route("UpdatePostOffice")]
         [HttpPut]
-        public async Task<IActionResult> UpdatePostOffice(PostOffice post)
+        public async Task<IActionResult> UpdatePostOffice(PostOffice Post)
         {
             IAsyncSession session = _driver.AsyncSession();
             bool result;
@@ -197,13 +199,13 @@ namespace NBP_Project_2023.Server.Controllers
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
                         MATCH (p:PostOffice)
-                        WHERE ID(p) = $id
-                        SET p.City = $city
-                        SET p.PostalCode = $postal
+                        WHERE ID(p) = $Id
+                        SET p.City = '$City'
+                        SET p.PostalCode = $PostalCode
                         SET p.X = $PostX
                         SET p.Y = $PostY
                         SET p.IsMainPostOffice = $IsMainPostOffice
-                    ", new { post.Id, post.City, post.PostalCode, post.PostX, post.PostY, post.IsMainPostOffice });
+                    ", new { Post.Id, Post.City, Post.PostalCode, Post.PostX, Post.PostY, Post.IsMainPostOffice });
                     IResultSummary summary = await cursor.ConsumeAsync();
                     return summary.Counters.ContainsUpdates;
                 });
@@ -214,9 +216,9 @@ namespace NBP_Project_2023.Server.Controllers
             else return BadRequest("PostOffice update failed!");
         }
 
-        [Route("MoveWorker/{CourierId}/{OldPostalCode}/{NewPostalCode}")]
+        [Route("MoveWorker/{CourierId}/{NewPostalCode}")]
         [HttpPut]
-        public async Task<IActionResult> MoveWorker(int CourierId, int OldPostalCode, int NewPostalCode)
+        public async Task<IActionResult> MoveWorker(int CourierId, int NewPostalCode)
         {
             IAsyncSession session = _driver.AsyncSession();
             int result;
@@ -225,14 +227,12 @@ namespace NBP_Project_2023.Server.Controllers
                 result = await session.ExecuteWriteAsync(async tx =>
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
-                        MATCH (c:Courier)
-                        WHERE ID(c) = $CourierId
-                        MATCH (old:PostOffice{PostalCode:$OldPostalCode})
+                        MATCH (c:Courier WHERE ID(c) = $CourierId)-[w:WorksAt]-(:PostOffice)
+                        DELETE w
+                        WITH c
                         MATCH (new:PostOffice{PostalCode:$NewPostalCode})
-                        MATCH (c)-[rel:WorksAt]-(old)
-                        DELETE rel
                         MERGE (c)-[:WorksAt]-(new)
-                    ", new { CourierId, OldPostalCode, NewPostalCode });
+                    ", new { CourierId, NewPostalCode });
                     IResultSummary summary = await cursor.ConsumeAsync();
                     return summary.Counters.RelationshipsDeleted;
                 });
@@ -242,9 +242,9 @@ namespace NBP_Project_2023.Server.Controllers
             else return NotFound();
         }
 
-        [Route("MovePackageToAnotherPostOffice/{PackageID}/{OldPostalCode}/{NewPostalCode}")]
+        [Route("MovePackageToAnotherPostOffice/{PackageID}/{NewPostalCode}")]
         [HttpPut]
-        public async Task<IActionResult> MovePackageToAnotherPostOffice(string PackageID, int OldPostalCode, int NewPostalCode)
+        public async Task<IActionResult> MovePackageToAnotherPostOffice(string PackageID, int NewPostalCode)
         {
             IAsyncSession session = _driver.AsyncSession();
             int result;
@@ -253,13 +253,12 @@ namespace NBP_Project_2023.Server.Controllers
                 result = await session.ExecuteWriteAsync(async tx =>
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
-                        MATCH (p:Package{PackageID:$PackageId})
-                        MATCH (old:PostOffice{PostalCode:$OldPostalCode})
-                        MATCH (new:PostOffice{PostalCode:$NewPostalCode})
-                        MATCH (old)-[rel:Has]-(p)
+                        MATCH (:PostOffice)-[rel:Has]-(p:Package WHERE p.PackageID = '$PackageID')
                         DELETE rel
+                        WITH p
+                        MATCH (new:PostOffice{PostalCode:$NewPostalCode})
                         MERGE (new)-[:Has]-(p)
-                    ", new { PackageID, OldPostalCode, NewPostalCode });
+                    ", new { PackageID, NewPostalCode });
                     var summary = await cursor.ConsumeAsync();
                     return summary.Counters.RelationshipsDeleted;
                 });
@@ -280,9 +279,7 @@ namespace NBP_Project_2023.Server.Controllers
                 result = await session.ExecuteWriteAsync(async tx =>
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
-                        MATCH (post:PostOffice{PostalCode:$PostalCode})
-                        MATCH (package:Package{PackageID:$packageID})
-                        MERGE (post)-[:Has]-(package)
+                        MERGE (:PostOffice{PostalCode:$PostalCode})-[:Has]-(:Package{PackageID:'$PackageID'})
                     ", new { PostalCode, PackageID });
                     IResultSummary summary = await cursor.ConsumeAsync();
                     return summary.Counters.RelationshipsCreated;
@@ -295,7 +292,7 @@ namespace NBP_Project_2023.Server.Controllers
 
         [Route("RegisterWorker/{PostalCode}/{WorkerId}")]
         [HttpPut]
-        public async Task<IActionResult> RegisterWorker(int PostalCode, string WorkerID)
+        public async Task<IActionResult> RegisterWorker(int PostalCode, int WorkerID)
         {
             IAsyncSession session = _driver.AsyncSession();
             int result;
@@ -304,10 +301,10 @@ namespace NBP_Project_2023.Server.Controllers
                 result = await session.ExecuteWriteAsync(async tx =>
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
-                        MATCH (post:PostOffice{PostalCode:$PostalCode})
-                        MATCH (courier:Courier)
-                        WHERE ID(courier) = $WorkerID
-                        MERGE (courier)-[:WorksAt]-(post)
+                        MATCH (p:PostOffice{PostalCode:$PostalCode})
+                        WITH p
+                        MATCH (c:Courier WHERE ID(c) = $WorkerID)
+                        MERGE (c)-[:WorksAt]-(p)
                     ", new { PostalCode, WorkerID });
                     IResultSummary summary = await cursor.ConsumeAsync();
                     return summary.Counters.RelationshipsCreated;
@@ -320,8 +317,7 @@ namespace NBP_Project_2023.Server.Controllers
 
         [Route("DeletePostOffice/{PostalCode}")]
         [HttpDelete]
-        //Bitno da je da u pošti koja se briše nema paketa!!
-        //Otkačiti sve radnike prvo
+        //Bitno da je da u pošti koja se briše nema paketa i radnika!
         public async Task<IActionResult> DeletePostOffice(int PostalCode)
         {
             IAsyncSession session = _driver.AsyncSession();
@@ -331,9 +327,8 @@ namespace NBP_Project_2023.Server.Controllers
                 result = await session.ExecuteWriteAsync(async tx =>
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
-                        MATCH (p:PostOffice)
-                        WHERE p.PostalCode = $PostalCode
-                        DETACH DELETE p
+                        MATCH (p:PostOffice WHERE p.PostalCode = $PostalCode)
+                        DELETE p
                     ", new { PostalCode });
                     IResultSummary summary = await cursor.ConsumeAsync();
                     return summary.Counters.NodesDeleted;

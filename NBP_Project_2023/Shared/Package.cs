@@ -8,9 +8,9 @@
         public string Description { get; set; } = string.Empty;
         public float Weight { get; set; }
         public int Price { get; set; }
-        public int Sender { get; set; } //UserAccount Id
-        public int Receiver { get; set; } //UserAccount Id
-        public string Status { get; set; } = string.Empty;
+        public string SenderEmail { get; set; } = string.Empty;
+        public string ReceiverEmail { get; set; } = string.Empty; 
+        public string PackageStatus { get; set; } = string.Empty; // Dodati enum kao za courier status??
         public DateTime EstimatedArrivalDate { get; set; }
         public int Location { get; set; } // PostId - PostalCode
     }

@@ -18,8 +18,8 @@ namespace NBP_Project_2023.Shared
         public int Id { get; set; }
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
-        public string CourierStatus { get; set; } = Status.Available.ToString(); 
-        public int WorksAt { get; set; } //PostId drugim rečima
+        public string CourierStatus { get; set; } = Status.Away.ToString(); 
+        public int WorksAt { get; set; } //PostalCode
         public List<string> Packages { get; set; } = new List<string>(); //PackageID
     }
 }

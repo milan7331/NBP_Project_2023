@@ -19,7 +19,7 @@ namespace NBP_Project_2023.Server.Controllers
 
         [Route("RegisterUserAccount")]
         [HttpPost]
-        public async Task<IActionResult> RegisterUserAccount(UserAccount user)
+        public async Task<IActionResult> RegisterUserAccount(UserAccount User)
         {
             IAsyncSession session = _driver.AsyncSession();
             int result;
@@ -28,28 +28,28 @@ namespace NBP_Project_2023.Server.Controllers
                 result = await session.ExecuteWriteAsync(async tx =>
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
-                        MERGE (u:UserAccount {Email: $Email})
-                        SET u.FirstName = $FirstName
-                        SET u.LastName = $LastName
-                        SET u.Password = $Password
-                        SET u.Street = $Street
+                        MERGE (u:UserAccount {Email: '$Email'})
+                        SET u.FirstName = '$FirstName'
+                        SET u.LastName = '$LastName'
+                        SET u.Password = '$Password'
+                        SET u.Street = '$Street'
                         SET u.StreetNumber = $StreetNumber
-                        SET u.City = $City
+                        SET u.City = '$City'
                         SET u.PostalCode = $PostalCode
-                        SET u.PhoneNumber = $PhoneNumber
-                    ", new { user.Email, user.FirstName, user.LastName, user.Password, user.Street, user.StreetNumber, user.City, user.PostalCode, user.PhoneNumber });
+                        SET u.PhoneNumber = '$PhoneNumber'
+                    ", new { User.Email, User.FirstName, User.LastName, User.Password, User.Street, User.StreetNumber, User.City, User.PostalCode, User.PhoneNumber });
                     IResultSummary summary = await cursor.ConsumeAsync();
                     return summary.Counters.NodesCreated;
                 });
             }
             finally { await session.CloseAsync(); }
-            if (result == 1) return Ok(user);
+            if (result == 1) return Ok(User);
             return BadRequest("User registration failed!");
         }
 
-        [Route("GetUserAccount/{UserId}")]
+        [Route("GetUserAccount/{Email}")]
         [HttpGet]
-        public async Task<IActionResult> GetUserAccount(int UserId)
+        public async Task<IActionResult> GetUserAccount(string Email)
         {
             IAsyncSession session = _driver.AsyncSession();
             INode result;
@@ -57,7 +57,11 @@ namespace NBP_Project_2023.Server.Controllers
             {
                 result = await session.ExecuteReadAsync(async tx =>
                 {
-                    IResultCursor cursor = await tx.RunAsync("MATCH (u:UserAccount) WHERE ID(u) = " + UserId + " RETURN u");
+                    IResultCursor cursor = await tx.RunAsync(@"
+                        MATCH (u:UserAccount)
+                        WHERE u.Email = '$Email'
+                        RETURN u
+                    ", new { Email });
                     IRecord record = await cursor.SingleAsync();
                     return record["u"].As<INode>();
                 });
@@ -93,7 +97,10 @@ namespace NBP_Project_2023.Server.Controllers
                  result = await session.ExecuteReadAsync(async tx =>
                  {
                      IResultCursor cursor = await tx.RunAsync(@"
-                     MATCH (u:UserAccount {Email:" + Email + ", Password:" + Password + "}) RETURN u");
+                        MATCH (u:UserAccount)
+                        WHERE u.Email = '$Email', u.Password = '$Password'
+                        RETURN u
+                     ", new {Email, Password});
                      IRecord record = await cursor.SingleAsync();
                      return record["u"].As<INode>();
                  });
@@ -120,7 +127,7 @@ namespace NBP_Project_2023.Server.Controllers
 
         [Route("EditUserAccount")]
         [HttpPut]
-        public async Task<IActionResult> EditUserAccount(UserAccount user)
+        public async Task<IActionResult> EditUserAccount(UserAccount User)
         {
             IAsyncSession session = _driver.AsyncSession();
             bool result;
@@ -131,40 +138,40 @@ namespace NBP_Project_2023.Server.Controllers
                     IResultCursor cursor = await tx.RunAsync(@"
                         MATCH (u:UserAccount)
                         WHERE ID(u) = $Id
-                        SET u.FirstName = $FirstName
-                        SET u.LastName = $LastName
-                        SET u.Email = $Email
-                        SET u.Password = $Password
-                        SET u.Street = $Street
+                        SET u.FirstName = '$FirstName'
+                        SET u.LastName = '$LastName'
+                        SET u.Email = '$Email'
+                        SET u.Password = '$Password'
+                        SET u.Street = '$Street'
                         SET u.StreetNumber = $StreetNumber
-                        SET u.City = $City
+                        SET u.City = '$City'
                         SET u.PostalCode = $PostalCode
-                        SET u.PhoneNumber = $PhoneNumber"
-                        , new {user.Id, user.FirstName, user.LastName, user.Email, user.Password, user.Street, user.StreetNumber, user.City, user.PostalCode, user.PhoneNumber});
+                        SET u.PhoneNumber = '$PhoneNumber'
+                    ", new { User.Id, User.FirstName, User.LastName, User.Email, User.Password, User.Street, User.StreetNumber, User.City, User.PostalCode, User.PhoneNumber });
                     IResultSummary summary = await cursor.ConsumeAsync();
                     return summary.Counters.ContainsUpdates;
                 });
             }
             finally { await session.CloseAsync(); }
-            if(result) return Ok("User: " + user.FirstName + " " + user.LastName + " updated successfully!");
+            if(result) return Ok("User: " + User.FirstName + " " + User.LastName + " updated successfully!");
             return BadRequest("Something went wrong updating the user!");
         }
 
-        [Route("DeleteUserAccount/{UserID}")]
+        [Route("DeleteUserAccount/{Email}/{Password}")]
         [HttpDelete]
-        public async Task<IActionResult> DeleteUserAccount(int UserID)
+        public async Task<IActionResult> DeleteUserAccount(string Email, string Password)
         {
             IAsyncSession session = _driver.AsyncSession();
             int result;
             try
             {
-                result = await session.ExecuteReadAsync(async tx =>
+                result = await session.ExecuteWriteAsync(async tx =>
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
                         MATCH (u:UserAccount)
-                        WHERE ID(u) = $UserID
+                        WHERE u.Email = '$Email', u.Password = '$Password'
                         DETACH DELETE u
-                    ", new {UserID});
+                    ", new { Email, Password });
                     IResultSummary summary = await cursor.ConsumeAsync();
                     return summary.Counters.NodesDeleted;
                 });
