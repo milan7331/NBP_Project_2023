@@ -12,6 +12,5 @@
         public string ReceiverEmail { get; set; } = string.Empty; 
         public string PackageStatus { get; set; } = string.Empty; // Dodati enum kao za courier status??
         public DateTime EstimatedArrivalDate { get; set; }
-        public int Location { get; set; } // PostId - PostalCode
     }
 }

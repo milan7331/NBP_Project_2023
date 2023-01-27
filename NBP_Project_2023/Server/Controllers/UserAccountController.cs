@@ -1,6 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Infrastructure;
+﻿using Microsoft.AspNetCore.Mvc;
 using NBP_Project_2023.Shared;
 using Neo4j.Driver;
 
@@ -19,7 +17,7 @@ namespace NBP_Project_2023.Server.Controllers
 
         [Route("RegisterUserAccount")]
         [HttpPost]
-        public async Task<IActionResult> RegisterUserAccount(UserAccount User)
+        public async Task<IActionResult> RegisterUserAccount(UserAccount user)
         {
             IAsyncSession session = _driver.AsyncSession();
             int result;
@@ -37,19 +35,19 @@ namespace NBP_Project_2023.Server.Controllers
                         SET u.City = '$City'
                         SET u.PostalCode = $PostalCode
                         SET u.PhoneNumber = '$PhoneNumber'
-                    ", new { User.Email, User.FirstName, User.LastName, User.Password, User.Street, User.StreetNumber, User.City, User.PostalCode, User.PhoneNumber });
+                    ", new { user.Email, user.FirstName, user.LastName, user.Password, user.Street, user.StreetNumber, user.City, user.PostalCode, user.PhoneNumber });
                     IResultSummary summary = await cursor.ConsumeAsync();
                     return summary.Counters.NodesCreated;
                 });
             }
             finally { await session.CloseAsync(); }
-            if (result == 1) return Ok(User);
+            if (result == 1) return Ok("User registered successfully!");
             return BadRequest("User registration failed!");
         }
 
-        [Route("GetUserAccount/{Email}")]
+        [Route("GetUserAccount/{email}")]
         [HttpGet]
-        public async Task<IActionResult> GetUserAccount(string Email)
+        public async Task<IActionResult> GetUserAccount(string email)
         {
             IAsyncSession session = _driver.AsyncSession();
             INode result;
@@ -59,9 +57,9 @@ namespace NBP_Project_2023.Server.Controllers
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
                         MATCH (u:UserAccount)
-                        WHERE u.Email = '$Email'
+                        WHERE u.Email = '$email'
                         RETURN u
-                    ", new { Email });
+                    ", new { email });
                     IRecord record = await cursor.SingleAsync();
                     return record["u"].As<INode>();
                 });
@@ -86,9 +84,9 @@ namespace NBP_Project_2023.Server.Controllers
             return BadRequest("This UserAccount doesn't exist!");
         }
 
-        [Route("SignIn/{Email}/{Password}")]
+        [Route("SignIn/{email}/{password}")]
         [HttpGet]
-        public async Task<IActionResult> SignIn(string Email, string Password)
+        public async Task<IActionResult> SignIn(string email, string password)
         {
             IAsyncSession session = _driver.AsyncSession();
             INode result;
@@ -98,9 +96,9 @@ namespace NBP_Project_2023.Server.Controllers
                  {
                      IResultCursor cursor = await tx.RunAsync(@"
                         MATCH (u:UserAccount)
-                        WHERE u.Email = '$Email', u.Password = '$Password'
+                        WHERE u.Email = '$email', u.Password = '$password'
                         RETURN u
-                     ", new {Email, Password});
+                     ", new { email, password });
                      IRecord record = await cursor.SingleAsync();
                      return record["u"].As<INode>();
                  });
@@ -127,7 +125,7 @@ namespace NBP_Project_2023.Server.Controllers
 
         [Route("EditUserAccount")]
         [HttpPut]
-        public async Task<IActionResult> EditUserAccount(UserAccount User)
+        public async Task<IActionResult> EditUserAccount(UserAccount user)
         {
             IAsyncSession session = _driver.AsyncSession();
             bool result;
@@ -147,19 +145,19 @@ namespace NBP_Project_2023.Server.Controllers
                         SET u.City = '$City'
                         SET u.PostalCode = $PostalCode
                         SET u.PhoneNumber = '$PhoneNumber'
-                    ", new { User.Id, User.FirstName, User.LastName, User.Email, User.Password, User.Street, User.StreetNumber, User.City, User.PostalCode, User.PhoneNumber });
+                    ", new { user.Id, user.FirstName, user.LastName, user.Email, user.Password, user.Street, user.StreetNumber, user.City, user.PostalCode, user.PhoneNumber });
                     IResultSummary summary = await cursor.ConsumeAsync();
                     return summary.Counters.ContainsUpdates;
                 });
             }
             finally { await session.CloseAsync(); }
-            if(result) return Ok("User: " + User.FirstName + " " + User.LastName + " updated successfully!");
+            if(result) return Ok("User: " + user.FirstName + " " + user.LastName + " updated successfully!");
             return BadRequest("Something went wrong updating the user!");
         }
 
-        [Route("DeleteUserAccount/{Email}/{Password}")]
+        [Route("DeleteUserAccount/{email}/{password}")]
         [HttpDelete]
-        public async Task<IActionResult> DeleteUserAccount(string Email, string Password)
+        public async Task<IActionResult> DeleteUserAccount(string email, string password)
         {
             IAsyncSession session = _driver.AsyncSession();
             int result;
@@ -171,7 +169,7 @@ namespace NBP_Project_2023.Server.Controllers
                         MATCH (u:UserAccount)
                         WHERE u.Email = '$Email', u.Password = '$Password'
                         DETACH DELETE u
-                    ", new { Email, Password });
+                    ", new { email, password });
                     IResultSummary summary = await cursor.ConsumeAsync();
                     return summary.Counters.NodesDeleted;
                 });

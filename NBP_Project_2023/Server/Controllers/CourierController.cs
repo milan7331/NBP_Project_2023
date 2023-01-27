@@ -18,7 +18,7 @@ namespace NBP_Project_2023.Server.Controllers
 
         [Route("CreateCourier")]
         [HttpPost]
-        public async Task<IActionResult> CreateCourier(Courier Courier)
+        public async Task<IActionResult> CreateCourier(Courier courier)
         {
             IAsyncSession session = _driver.AsyncSession();
             int result;
@@ -30,19 +30,19 @@ namespace NBP_Project_2023.Server.Controllers
                         MERGE (c:Courier {FirstName: '$FirstName'})
                         SET c.LastName = '$LastName'
                         SET c.CourierStatus = '$CourierStatus'
-                    ", new { Courier.FirstName, Courier.LastName, Courier.CourierStatus });
+                    ", new { courier.FirstName, courier.LastName, courier.CourierStatus });
                     IResultSummary summary = await cursor.ConsumeAsync();
                     return summary.Counters.NodesCreated;
                 });
             }
             finally { await session.CloseAsync(); }
-            if (result == 1) return Ok(Courier);
+            if (result == 1) return Ok("User registered successfully!");
             return BadRequest("User registration failed!");
         }
 
-        [Route("AddWorkplace/{CourierID}/{PostalCode}")]
+        [Route("AddWorkplace/{courierID}/{postalCode}")]
         [HttpPost]
-        public async Task<IActionResult> AddWorkplace(int CourierID, int PostalCode)
+        public async Task<IActionResult> AddWorkplace(int courierID, int postalCode)
         {
             IAsyncSession session = _driver.AsyncSession();
             bool result;
@@ -51,11 +51,11 @@ namespace NBP_Project_2023.Server.Controllers
                 result = await session.ExecuteWriteAsync(async tx =>
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
-                        MATCH (c:Courier WHERE ID(c) = $CourierID)
+                        MATCH (c:Courier WHERE ID(c) = $courierID)
                         WITH c
-                        MATCH (p:PostOffice{PostalCode:$PostalCode})
+                        MATCH (p:PostOffice{PostalCode:$postalCode})
                         MERGE (c)-[:WorksAt]-(p)
-                    ", new { CourierID, PostalCode});
+                    ", new { courierID, postalCode});
                     IResultSummary summary = await cursor.ConsumeAsync();
                     if(summary.Counters.RelationshipsCreated > 0) return true;
                     return false;
@@ -66,9 +66,9 @@ namespace NBP_Project_2023.Server.Controllers
             else return BadRequest("Something went wrong adding courier workplace!");
         }
 
-        [Route("GetCourier/{CourierId}")]
+        [Route("GetCourier/{courierId}")]
         [HttpGet]
-        public async Task<IActionResult> GetCourier(int CourierID)
+        public async Task<IActionResult> GetCourier(int courierID)
         {
             IAsyncSession session = _driver.AsyncSession();
             int PostalCode = -1;
@@ -78,9 +78,9 @@ namespace NBP_Project_2023.Server.Controllers
                 result = await session.ExecuteReadAsync(async tx =>
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
-                        MATCH (c:Courier WHERE ID(c) = $CourierID)-[:WorksAt]-(p:PostOffice)
+                        MATCH (c:Courier WHERE ID(c) = $courierID)-[:WorksAt]-(p:PostOffice)
                         RETURN c, p.PostalCode as code
-                    ", new { CourierID });
+                    ", new { courierID });
                     IRecord record = await cursor.SingleAsync();
                     PostalCode = record["code"].As<int>();
                     return record["c"].As<INode>();
@@ -101,9 +101,9 @@ namespace NBP_Project_2023.Server.Controllers
             return BadRequest("This Courier doesn't exist!");
         }
 
-        [Route("GetCourierPackages/{CourierID}")]
+        [Route("GetCourierPackages/{courierID}")]
         [HttpGet]
-        public async Task<IActionResult> GetCourierPackages(int CourierID)
+        public async Task<IActionResult> GetCourierPackages(int courierID)
         {
             IAsyncSession session = _driver.AsyncSession();
             List<string> result = new();
@@ -112,9 +112,9 @@ namespace NBP_Project_2023.Server.Controllers
                 await session.ExecuteReadAsync(async tx =>
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
-                        MATCH (c:Courier WHERE ID(c) = $CourierID)-[:Has]-(p:Package)
+                        MATCH (c:Courier WHERE ID(c) = $courierID)-[:Has]-(p:Package)
                         RETURN p.PackageID as PackageID
-                    ", new { CourierID });
+                    ", new { courierID });
                     List<IRecord> records = await cursor.ToListAsync();
                     foreach (var record in records)
                     {
@@ -128,7 +128,7 @@ namespace NBP_Project_2023.Server.Controllers
 
         [Route("EditCourier")]
         [HttpPut]
-        public async Task<IActionResult> EditCourier(Courier Courier)
+        public async Task<IActionResult> EditCourier(Courier courier)
         {
             IAsyncSession session = _driver.AsyncSession();
             bool result;
@@ -141,19 +141,19 @@ namespace NBP_Project_2023.Server.Controllers
                         SET c.FirstName = '$FirstName'
                         SET c.LastName = '$LastName'
                         SET c.CourierStatus = '$CourierStatus'
-                        ", new { Courier.Id, Courier.FirstName, Courier.LastName, Courier.CourierStatus });
+                        ", new { courier.Id, courier.FirstName, courier.LastName, courier.CourierStatus });
                     IResultSummary summary = await cursor.ConsumeAsync();
                     return summary.Counters.ContainsUpdates;
                 });
             }
             finally { await session.CloseAsync(); }
-            if (result) return Ok("User: " + Courier.FirstName + " " + Courier.LastName + " updated successfully!");
+            if (result) return Ok("User: " + courier.FirstName + " " + courier.LastName + " updated successfully!");
             return BadRequest("Something went wrong updating the courier!");
         }
 
-        [Route("ChangeWorkplace/{CourierID}/{NewPostalCode}")]
+        [Route("ChangeWorkplace/{courierID}/{newPostalCode}")]
         [HttpPut]
-        public async Task<IActionResult> ChangeWorkplace(int CourierID, int NewPostalCode)
+        public async Task<IActionResult> ChangeWorkplace(int courierID, int newPostalCode)
         {
             IAsyncSession session = _driver.AsyncSession();
             bool result;
@@ -162,11 +162,11 @@ namespace NBP_Project_2023.Server.Controllers
                 result = await session.ExecuteWriteAsync(async tx =>
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
-                        MATCH (c:Courier WHERE ID(c) = $CourierID)-[w:WorksAt]-(:PostOffice)
+                        MATCH (c:Courier WHERE ID(c) = $courierID)-[w:WorksAt]-(:PostOffice)
                         DELETE w
                         WITH c
                         MERGE (c)-[:WorksAt]-(:PostOffice{PostalCode:$newPostalCode})
-                    ", new { CourierID, NewPostalCode });
+                    ", new { courierID, newPostalCode });
                     IResultSummary summary = await cursor.ConsumeAsync();
                     if (summary.Counters.RelationshipsCreated == 1 && summary.Counters.RelationshipsDeleted == 1) return true;
                     return false;
@@ -177,9 +177,9 @@ namespace NBP_Project_2023.Server.Controllers
             return BadRequest("Something went wrong changing the workplace!");
         }
 
-        [Route("DeliverPackageToPostOffice/{CourierID}/{PackageID}")]
+        [Route("DeliverPackageToPostOffice/{courierID}/{packageID}")]
         [HttpPut]
-        public async Task<IActionResult> DeliverPackageToPostOffice(int CourierID, string PackageID)
+        public async Task<IActionResult> DeliverPackageToPostOffice(int courierID, string packageID)
         {
             IAsyncSession session = _driver.AsyncSession();
             bool result;
@@ -188,12 +188,12 @@ namespace NBP_Project_2023.Server.Controllers
                 result = await session.ExecuteWriteAsync(async tx =>
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
-                        MATCH (c:Courier WHERE ID(c) = $CourierID)-[h:Has]-(p:Package{PackageID:'$PackageID'})
+                        MATCH (c:Courier WHERE ID(c) = $courierID)-[h:Has]-(p:Package{PackageID:'$packageID'})
                         DELETE h
                         WITH c, p
                         MATCH (c)-[:WorksAt]-(post:PostOffice)
                         MERGE (post)-[:Has]-(p)
-                    ", new {PackageID, CourierID});
+                    ", new {packageID, courierID});
                     IResultSummary summary = await cursor.ConsumeAsync();
                     if (summary.Counters.RelationshipsDeleted == 1 && summary.Counters.RelationshipsCreated == 1) return true;
                     return false;
@@ -203,6 +203,30 @@ namespace NBP_Project_2023.Server.Controllers
             if (result) return Ok("Package delivered successfully!");
             return BadRequest("Something went wrong delivering package!");
         }
+
+        [Route("DeleteCourier/{courierId}")]
+        [HttpDelete]
+        public async Task<IActionResult> DeleteCourier(int courierId)
+        {
+            IAsyncSession session = _driver.AsyncSession();
+            int result;
+            try
+            {
+                result = await session.ExecuteWriteAsync(async tx =>
+                {
+                    IResultCursor cursor = await tx.RunAsync(@"
+                        MATCH (c:Courier)
+                        WHERE ID(c) = $courierId
+                        DETACH DELETE c
+                    ", new { courierId });
+                    IResultSummary summary = await cursor.ConsumeAsync();
+                    return summary.Counters.NodesDeleted;
+                });
+            }
+            finally { await session.CloseAsync(); }
+            if (result == 1) return Ok("Courier deleted successfully!");
+            return BadRequest("Error deleting courier!");
+        }
     }
 }
-// KURIR DELIVER I TAKE PACKAGE??
+// KURIR INAČE MOZEŽ DA URADI TAKE PACKAGE I LEAVE PACKAGE??
