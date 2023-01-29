@@ -28,14 +28,14 @@ namespace NBP_Project_2023.Server.Controllers
                 result = await session.ExecuteWriteAsync(async tx =>
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
-                        MERGE (p:Package {PackageID:'$PackageID'}
-                        SET p.Content = '$Content'
-                        SET p.Description = '$Description'
+                        MERGE (p:Package {PackageID:$PackageID}
+                        SET p.Content = $Content
+                        SET p.Description = $Description
                         SET p.Weight = $Weight
                         SET p.Price = $Price
-                        SET p.SenderEmail = '$SenderEmail'
-                        SET p.ReceiverEmail = '$ReceiverEmail'
-                        SET p.PackageStatus = '$PackageStatus'
+                        SET p.SenderEmail = $SenderEmail
+                        SET p.ReceiverEmail = $ReceiverEmail
+                        SET p.PackageStatus = $PackageStatus
                         SET p.EstimatedArrivalDate = $EstimatedArrivalDate
                     ", new { package.PackageID, package.Content, package.Description, package.Weight, package.Price, package.SenderEmail, package.ReceiverEmail, package.PackageStatus, package.EstimatedArrivalDate });
                     IResultSummary summary = await cursor.ConsumeAsync();
@@ -52,37 +52,35 @@ namespace NBP_Project_2023.Server.Controllers
         public async Task<IActionResult> GetPackage(string packageId)
         {
             IAsyncSession session = _driver.AsyncSession();
-            INode result;
+            Package result;
             try
             {
                 result = await session.ExecuteReadAsync(async tx =>
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
                         MATCH (p:Package)
-                        WHERE p.PackageID = '$packageId'
+                        WHERE p.PackageID = $packageId
                         RETURN p
                     ", new { packageId });
                     IRecord record = await cursor.SingleAsync();
-                    return record["p"].As<INode>();
+                    INode p = record["p"].As<INode>();
+                    return new Package
+                    {
+                        Id = unchecked((int)p.Id),
+                        PackageID = p.Properties["PackageID"].As<string>(),
+                        Content = p.Properties["Content"].As<string>(),
+                        Description = p.Properties["Description"].As<string>(),
+                        Weight = p.Properties["Weight"].As<float>(),
+                        Price = p.Properties["Price"].As<int>(),
+                        SenderEmail = p.Properties["SenderEmail"].As<string>(), 
+                        ReceiverEmail = p.Properties["ReceiverEmail"].As<string>(),
+                        PackageStatus = p.Properties["PackageStatus"].As<string>(),
+                        EstimatedArrivalDate = p.Properties["EstimatedArrivalDate"].As<DateTime>()
+                    };
                 });
             }
             finally { await session.CloseAsync(); }
-            if (result != null)
-            {
-                return Ok(new Package
-                {
-                    Id = Int32.Parse(result.ElementId),
-                    PackageID = result.Properties["PackageID"].As<string>(),
-                    Content = result.Properties["Content"].As<string>(),
-                    Description = result.Properties["Description"].As<string>(),
-                    Weight = result.Properties["Weight"].As<float>(),
-                    Price = result.Properties["Price"].As<int>(),
-                    SenderEmail = result.Properties["SenderEmail"].As<string>(),
-                    ReceiverEmail = result.Properties["ReceiverEmail"].As<string>(),
-                    PackageStatus = result.Properties["PackageStatus"].As<string>(),
-                    EstimatedArrivalDate = result.Properties["EstimatedArrivalDate"].As<DateTime>()
-                });
-            }
+            if (result != null) return Ok(result);
             return BadRequest("Someting went wrong retrieving package!");
         }
 
@@ -98,7 +96,7 @@ namespace NBP_Project_2023.Server.Controllers
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
                         MATCH (p:Package)
-                        WHERE p.PackageID = '$packageId'
+                        WHERE p.PackageID = $packageId
                         RETURN p.PackageStatus as s
                     ", new { packageId });
                     IRecord record = await cursor.SingleAsync();
@@ -108,6 +106,33 @@ namespace NBP_Project_2023.Server.Controllers
             finally { await session.CloseAsync(); }
             if (result != null) return Ok(result);
             return BadRequest("Someting went wrong retrieving package status!");
+        }
+
+        [Route("GetPackageLocation/{packageId}")]
+        [HttpGet]
+        public async Task<IActionResult> GetPackageLocation(string packageId)
+        {
+            IAsyncSession session = _driver.AsyncSession();
+            List<string> result = new();
+            try
+            {
+                result = await session.ExecuteReadAsync(async tx =>
+                {
+                    IResultCursor cursor = await tx.RunAsync(@"
+                        MATCH (x)-[:Has]-(p:Package{PackageID:$packageId})
+                        RETURN
+                        CASE LABELS(x)
+                            WHEN [PostOffice] THEN [PostOffice, x.PostalCode]
+                            WHEN [Courier] THEN [Courier, ID(x)]
+                        END AS result
+                    ", new { packageId });
+                    IRecord record = await cursor.SingleAsync();
+                    return record["result"].As<List<string>>();
+                });
+            }
+            finally { await session.CloseAsync(); }
+            if (result != null) return Ok(result);
+            return BadRequest("Something went wrong determinig package location!");
         }
 
 
@@ -124,14 +149,14 @@ namespace NBP_Project_2023.Server.Controllers
                     IResultCursor cursor = await tx.RunAsync(@"
                         MATCH (p:Package)
                         WHERE ID(p) = $Id
-                        SET p.PackageID = '$PackageID'
-                        SET p.Content = '$Content'
-                        SET p.Description = '$Description'
+                        SET p.PackageID = $PackageID
+                        SET p.Content = $Content
+                        SET p.Description = $Description
                         SET p.Weight = $Weight
                         SET p.Price = $Price
-                        SET p.SenderEmail = '$SenderEmail'
-                        SET p.ReceiverEmail = '$ReceiverEmail'
-                        SET p.PackageStatus = '$PackageStatus'
+                        SET p.SenderEmail = $SenderEmail
+                        SET p.ReceiverEmail = $ReceiverEmail
+                        SET p.PackageStatus = $PackageStatus
                         SET p.EstimatedArrivalDate = $EstimatedArrivalDate
                     ", new { package.Id, package.PackageID, package.Content, package.Description, package.Weight, package.Price, package.SenderEmail, package.ReceiverEmail, package.PackageStatus, package.EstimatedArrivalDate });
                     IResultSummary summary = await cursor.ConsumeAsync();
@@ -155,7 +180,7 @@ namespace NBP_Project_2023.Server.Controllers
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
                         MATCH (p:Package)
-                        WHERE p.PackageID = '$packageId'
+                        WHERE p.PackageID = $packageId
                         DETACH DELETE p
                     ", new { packageId });
                     IResultSummary summary = await cursor.ConsumeAsync();

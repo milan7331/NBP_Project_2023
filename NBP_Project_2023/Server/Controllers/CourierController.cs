@@ -27,9 +27,9 @@ namespace NBP_Project_2023.Server.Controllers
                 result = await session.ExecuteWriteAsync(async tx =>
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
-                        MERGE (c:Courier {FirstName: '$FirstName'})
-                        SET c.LastName = '$LastName'
-                        SET c.CourierStatus = '$CourierStatus'
+                        MERGE (c:Courier {FirstName: $FirstName})
+                        SET c.LastName = $LastName
+                        SET c.CourierStatus = $CourierStatus
                     ", new { courier.FirstName, courier.LastName, courier.CourierStatus });
                     IResultSummary summary = await cursor.ConsumeAsync();
                     return summary.Counters.NodesCreated;
@@ -71,8 +71,7 @@ namespace NBP_Project_2023.Server.Controllers
         public async Task<IActionResult> GetCourier(int courierID)
         {
             IAsyncSession session = _driver.AsyncSession();
-            int PostalCode = -1;
-            INode result;
+            Courier result;
             try
             {
                 result = await session.ExecuteReadAsync(async tx =>
@@ -82,22 +81,20 @@ namespace NBP_Project_2023.Server.Controllers
                         RETURN c, p.PostalCode as code
                     ", new { courierID });
                     IRecord record = await cursor.SingleAsync();
-                    PostalCode = record["code"].As<int>();
-                    return record["c"].As<INode>();
+                    int PostalCode = record["code"].As<int>();
+                    INode c = record["c"].As<INode>();
+                    return new Courier
+                    {
+                        Id = unchecked((int)c.Id),
+                        FirstName = c.Properties["FirstName"].As<string>(),
+                        LastName = c.Properties["LastName"].As<string>(),
+                        CourierStatus = c.Properties["CourierStatus"].As<string>(),
+                        WorksAt = PostalCode
+                    };
                 });
             }
             finally { await session.CloseAsync(); }
-            if (result != null)
-            {
-                return Ok(new Courier
-                {
-                    Id = Int32.Parse(result.ElementId),
-                    FirstName = result.Properties["FirstName"].ToString() ?? "",
-                    LastName = result.Properties["LastName"].ToString() ?? "",
-                    CourierStatus = result.Properties["CourierStatus"].ToString() ?? "",
-                    WorksAt = PostalCode
-                });
-            }
+            if (result != null) return Ok(result);
             return BadRequest("This Courier doesn't exist!");
         }
 
@@ -138,9 +135,9 @@ namespace NBP_Project_2023.Server.Controllers
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
                         MATCH (c:Courier WHERE ID(c) = $Id)
-                        SET c.FirstName = '$FirstName'
-                        SET c.LastName = '$LastName'
-                        SET c.CourierStatus = '$CourierStatus'
+                        SET c.FirstName = $FirstName
+                        SET c.LastName = $LastName
+                        SET c.CourierStatus = $CourierStatus
                         ", new { courier.Id, courier.FirstName, courier.LastName, courier.CourierStatus });
                     IResultSummary summary = await cursor.ConsumeAsync();
                     return summary.Counters.ContainsUpdates;
@@ -188,7 +185,7 @@ namespace NBP_Project_2023.Server.Controllers
                 result = await session.ExecuteWriteAsync(async tx =>
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
-                        MATCH (c:Courier WHERE ID(c) = $courierID)-[h:Has]-(p:Package{PackageID:'$packageID'})
+                        MATCH (c:Courier WHERE ID(c) = $courierID)-[h:Has]-(p:Package{PackageID:$packageID})
                         DELETE h
                         WITH c, p
                         MATCH (c)-[:WorksAt]-(post:PostOffice)

@@ -26,15 +26,15 @@ namespace NBP_Project_2023.Server.Controllers
                 result = await session.ExecuteWriteAsync(async tx =>
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
-                        MERGE (u:UserAccount {Email: '$Email'})
-                        SET u.FirstName = '$FirstName'
-                        SET u.LastName = '$LastName'
-                        SET u.Password = '$Password'
-                        SET u.Street = '$Street'
+                        MERGE (u:UserAccount {Email: $Email})
+                        SET u.FirstName = $FirstName
+                        SET u.LastName = $LastName
+                        SET u.Password = $Password
+                        SET u.Street = $Street
                         SET u.StreetNumber = $StreetNumber
-                        SET u.City = '$City'
+                        SET u.City = $City
                         SET u.PostalCode = $PostalCode
-                        SET u.PhoneNumber = '$PhoneNumber'
+                        SET u.PhoneNumber = $PhoneNumber
                     ", new { user.Email, user.FirstName, user.LastName, user.Password, user.Street, user.StreetNumber, user.City, user.PostalCode, user.PhoneNumber });
                     IResultSummary summary = await cursor.ConsumeAsync();
                     return summary.Counters.NodesCreated;
@@ -50,37 +50,35 @@ namespace NBP_Project_2023.Server.Controllers
         public async Task<IActionResult> GetUserAccount(string email)
         {
             IAsyncSession session = _driver.AsyncSession();
-            INode result;
+            UserAccount result;
             try
             {
                 result = await session.ExecuteReadAsync(async tx =>
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
                         MATCH (u:UserAccount)
-                        WHERE u.Email = '$email'
+                        WHERE u.Email = $email
                         RETURN u
                     ", new { email });
                     IRecord record = await cursor.SingleAsync();
-                    return record["u"].As<INode>();
+                    INode u = record["u"].As<INode>();
+                    return new UserAccount
+                    {
+                        Id = unchecked((int)u.Id),
+                        FirstName = u.Properties["FirstName"].As<string>(),
+                        LastName = u.Properties["LastName"].As<string>(),
+                        Email = u.Properties["Email"].As<string>(),
+                        Password = u.Properties["Password"].As<string>(),
+                        Street = u.Properties["Street"].As<string>(),
+                        StreetNumber = u.Properties["StreetNumber"].As<int>(),
+                        City = u.Properties["City"].As<string>(),
+                        PostalCode = u.Properties["PostalCode"].As<int>(),
+                        PhoneNumber = u.Properties["PhoneNumber"].As<string>()
+                    };
                 });
             }
             finally { await session.CloseAsync(); }
-            if (result != null)
-            {
-                return Ok(new UserAccount
-                {
-                    Id = Int32.Parse(result.ElementId),
-                    FirstName = result.Properties["FirstName"].ToString() ?? "",
-                    LastName = result.Properties["LastName"].ToString() ?? "",
-                    Email = result.Properties["Email"].ToString() ?? "",
-                    Password = result.Properties["Password"].ToString() ?? "",
-                    Street = result.Properties["Street"].ToString() ?? "",
-                    StreetNumber = Int32.Parse(result.Properties["StreetNumber"].ToString() ?? "0"),
-                    City = result.Properties["City"].ToString() ?? "",
-                    PostalCode = Int32.Parse(result.Properties["PostalCode"].ToString() ?? "0"),
-                    PhoneNumber = result.Properties["PhoneNumber"].ToString() ?? ""
-                });
-            }
+            if (result != null) return Ok(result);
             return BadRequest("This UserAccount doesn't exist!");
         }
 
@@ -89,37 +87,35 @@ namespace NBP_Project_2023.Server.Controllers
         public async Task<IActionResult> SignIn(string email, string password)
         {
             IAsyncSession session = _driver.AsyncSession();
-            INode result;
+            UserAccount result;
             try
             {
                  result = await session.ExecuteReadAsync(async tx =>
                  {
                      IResultCursor cursor = await tx.RunAsync(@"
                         MATCH (u:UserAccount)
-                        WHERE u.Email = '$email', u.Password = '$password'
+                        WHERE u.Email = $email, u.Password = $password
                         RETURN u
                      ", new { email, password });
                      IRecord record = await cursor.SingleAsync();
-                     return record["u"].As<INode>();
+                     INode u = record["u"].As<INode>();
+                     return new UserAccount
+                     {
+                         Id = unchecked((int)u.Id),
+                         FirstName = u.Properties["FirstName"].As<string>(),
+                         LastName = u.Properties["LastName"].As<string>(),
+                         Email = u.Properties["Email"].As<string>(),
+                         Password = u.Properties["Password"].As<string>(),
+                         Street = u.Properties["Street"].As<string>(),
+                         StreetNumber = u.Properties["StreetNumber"].As<int>(),
+                         City = u.Properties["City"].As<string>(),
+                         PostalCode = u.Properties["PostalCode"].As<int>(),
+                         PhoneNumber = u.Properties["PhoneNumber"].As<string>()
+                     };
                  });
             }
             finally { await session.CloseAsync(); }
-            if (result != null)
-            {
-                return Ok(new UserAccount
-                {
-                    Id = Int32.Parse(result.ElementId),
-                    FirstName = result.Properties["FirstName"].ToString() ?? "",
-                    LastName = result.Properties["LastName"].ToString() ?? "",
-                    Email = result.Properties["Email"].ToString() ?? "",
-                    Password = result.Properties["Password"].ToString() ?? "",
-                    Street = result.Properties["Street"].ToString() ?? "",
-                    StreetNumber = Int32.Parse(result.Properties["StreetNumber"].ToString() ?? "0"),
-                    City = result.Properties["City"].ToString() ?? "",
-                    PostalCode = Int32.Parse(result.Properties["PostalCode"].ToString() ?? "0"),
-                    PhoneNumber = result.Properties["PhoneNumber"].ToString() ?? ""
-                });
-            }
+            if (result != null) return Ok(result);
             return BadRequest("This UserAccount doesn't exist!");
         }
 
@@ -136,15 +132,15 @@ namespace NBP_Project_2023.Server.Controllers
                     IResultCursor cursor = await tx.RunAsync(@"
                         MATCH (u:UserAccount)
                         WHERE ID(u) = $Id
-                        SET u.FirstName = '$FirstName'
-                        SET u.LastName = '$LastName'
-                        SET u.Email = '$Email'
-                        SET u.Password = '$Password'
-                        SET u.Street = '$Street'
+                        SET u.FirstName = $FirstName
+                        SET u.LastName = $LastName
+                        SET u.Email = $Email
+                        SET u.Password = $Password
+                        SET u.Street = $Street
                         SET u.StreetNumber = $StreetNumber
-                        SET u.City = '$City'
+                        SET u.City = $City
                         SET u.PostalCode = $PostalCode
-                        SET u.PhoneNumber = '$PhoneNumber'
+                        SET u.PhoneNumber = $PhoneNumber
                     ", new { user.Id, user.FirstName, user.LastName, user.Email, user.Password, user.Street, user.StreetNumber, user.City, user.PostalCode, user.PhoneNumber });
                     IResultSummary summary = await cursor.ConsumeAsync();
                     return summary.Counters.ContainsUpdates;
@@ -167,7 +163,7 @@ namespace NBP_Project_2023.Server.Controllers
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
                         MATCH (u:UserAccount)
-                        WHERE u.Email = '$Email', u.Password = '$Password'
+                        WHERE u.Email = $Email, u.Password = $Password
                         DETACH DELETE u
                     ", new { email, password });
                     IResultSummary summary = await cursor.ConsumeAsync();
