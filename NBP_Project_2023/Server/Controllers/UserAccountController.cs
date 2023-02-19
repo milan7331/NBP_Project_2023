@@ -82,9 +82,9 @@ namespace NBP_Project_2023.Server.Controllers
             return BadRequest("This UserAccount doesn't exist!");
         }
 
-        [Route("SignIn/{email}/{password}")]
+        [Route("LogIn/{email}/{password}")]
         [HttpGet]
-        public async Task<IActionResult> SignIn(string email, string password)
+        public async Task<IActionResult> LogIn(string email, string password)
         {
             IAsyncSession session = _driver.AsyncSession();
             UserAccount result;
@@ -94,7 +94,7 @@ namespace NBP_Project_2023.Server.Controllers
                  {
                      IResultCursor cursor = await tx.RunAsync(@"
                         MATCH (u:UserAccount)
-                        WHERE u.Email = $email, u.Password = $password
+                        WHERE u.Email = $email AND u.Password = $password
                         RETURN u
                      ", new { email, password });
                      IRecord record = await cursor.SingleAsync();

@@ -1,0 +1,74 @@
+﻿@page "/login/{type}"
+@inject ApplicationState AppState
+@inject HttpClient HttpClient
+@using NBP_Project_2023.Shared
+
+
+
+<h3>Log In</h3>
+<div>
+    @if(Type == "courier" || Type == "user")
+    {
+        <EditForm Model=@loginForm OnSubmit=@HandleLoginFormSubmision>
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <InputText @bind-Value=loginForm.FirstName />
+
+            <InputText @bind-Value=loginForm.LastName />
+
+        </EditForm>
+        <button class="btn btn-warning" type="submit">Prijavi se</button>
+    }
+    else
+    {
+        <span>login greška</span>
+    }
+</div>
+
+
+@code {
+    [Parameter] public string Type { get; set; } = string.Empty;
+
+    private LoginForm loginForm = new();
+
+    async void HandleLoginFormSubmision(EditContext context)
+    {
+        bool dataIsValid = context.Validate();
+        if (dataIsValid)
+        {
+            LoginForm form = (LoginForm)context.Model;
+
+
+            if (Type == "courier")
+            {
+                //var response = await HttpClient.GetFromJsonAsync<Courier>(@"/api/Courier/GetCourierLogin/$firstName/$lastName");
+                var response = await HttpClient.GetAsync($"/api/Courier/GetCourierLogin/{form.FirstName}/{form.LastName}");
+                if(response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadFromJsonAsync<Courier>();
+                    //ne mora not null ne bi bio successful status code da je null lmao
+                    if (content != null)
+                    {
+                        AppState.LogInAsCourier(content);
+                    }
+                }
+            }
+            else if(Type == "user")
+            {
+                //var response = await HttpClient.GetFromJsonAsync<Courier>(@"/api/Courier/GetCourierLogin/$firstName/$lastName");
+                var response = await HttpClient.GetAsync($"/api/UserAccount/LogIn/{form.FirstName}/{form.LastName}");
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadFromJsonAsync<UserAccount>();
+                    //ne mora not null ne bi bio successful status code da je null lmao
+                    if (content != null)
+                    {
+                        AppState.LogInAsUser(content);
+                    }
+                }
+            }
+        }
+    }
+
+}

@@ -66,7 +66,7 @@ namespace NBP_Project_2023.Server.Controllers
             else return BadRequest("Something went wrong adding courier workplace!");
         }
 
-        [Route("GetCourier/{courierId}")]
+        [Route("GetCourier/{courierID}")]
         [HttpGet]
         public async Task<IActionResult> GetCourier(int courierID)
         {
@@ -80,6 +80,39 @@ namespace NBP_Project_2023.Server.Controllers
                         MATCH (c:Courier WHERE ID(c) = $courierID)-[:WorksAt]-(p:PostOffice)
                         RETURN c, p.PostalCode as code
                     ", new { courierID });
+                    IRecord record = await cursor.SingleAsync();
+                    int PostalCode = record["code"].As<int>();
+                    INode c = record["c"].As<INode>();
+                    return new Courier
+                    {
+                        Id = unchecked((int)c.Id),
+                        FirstName = c.Properties["FirstName"].As<string>(),
+                        LastName = c.Properties["LastName"].As<string>(),
+                        CourierStatus = c.Properties["CourierStatus"].As<string>(),
+                        WorksAt = PostalCode
+                    };
+                });
+            }
+            finally { await session.CloseAsync(); }
+            if (result != null) return Ok(result);
+            return BadRequest("This Courier doesn't exist!");
+        }
+
+        [Route("GetCourierLogin/{firstName}/{lastName}")]
+        [HttpGet]
+        public async Task<IActionResult> GetCourierLogin(string firstName, string lastName)
+        {
+            IAsyncSession session = _driver.AsyncSession();
+            Courier result;
+            try
+            {
+                result = await session.ExecuteReadAsync(async tx =>
+                {
+                    IResultCursor cursor = await tx.RunAsync(@"
+                        MATCH (c:Courier)-[:WorksAt]-(p:PostOffice)
+                        WHERE c.FirstName = $firstName AND c.LastName = $lastName
+                        RETURN c, p.PostalCode as code
+                    ", new { firstName, lastName });
                     IRecord record = await cursor.SingleAsync();
                     int PostalCode = record["code"].As<int>();
                     INode c = record["c"].As<INode>();
@@ -201,9 +234,9 @@ namespace NBP_Project_2023.Server.Controllers
             return BadRequest("Something went wrong delivering package!");
         }
 
-        [Route("DeleteCourier/{courierId}")]
+        [Route("DeleteCourier/{courierID}")]
         [HttpDelete]
-        public async Task<IActionResult> DeleteCourier(int courierId)
+        public async Task<IActionResult> DeleteCourier(int courierID)
         {
             IAsyncSession session = _driver.AsyncSession();
             int result;
@@ -213,9 +246,9 @@ namespace NBP_Project_2023.Server.Controllers
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
                         MATCH (c:Courier)
-                        WHERE ID(c) = $courierId
+                        WHERE ID(c) = $courierID
                         DETACH DELETE c
-                    ", new { courierId });
+                    ", new { courierID });
                     IResultSummary summary = await cursor.ConsumeAsync();
                     return summary.Counters.NodesDeleted;
                 });

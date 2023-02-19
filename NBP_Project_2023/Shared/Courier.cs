@@ -6,14 +6,15 @@ using System.Threading.Tasks;
 
 namespace NBP_Project_2023.Shared
 {
+    public enum Status
+    {
+        Away = 0,
+        Available = 1,
+        Busy = 2
+    }
+
     public class Courier
     {
-        public enum Status
-        {
-            Away = 0,
-            Available = 1,
-            Busy = 2
-        }
         
         public int Id { get; set; }
         
