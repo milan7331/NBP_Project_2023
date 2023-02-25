@@ -1,24 +1,58 @@
-﻿@page "/login/{type}"
+﻿@page "/login/{type}/{message?}"
 @inject ApplicationState AppState
 @inject HttpClient HttpClient
+@inject NavigationManager NavManager
 @using NBP_Project_2023.Shared
-
-
 
 <h3>Log In</h3>
 <div>
-    @if(Type == "courier" || Type == "user")
+    @if(Type == "courier")
     {
-        <EditForm Model=@loginForm OnSubmit=@HandleLoginFormSubmision>
+        <EditForm Model=@courierLoginForm OnSubmit="@HandleLoginFormSubmission">
             <DataAnnotationsValidator />
             <ValidationSummary />
 
-            <InputText @bind-Value=loginForm.FirstName />
+            <div>
+                <label for="courier-login-firstname">Ime: </label>
+                <InputText id="courier-login-firstname" class="form-control" @bind-Value=courierLoginForm.FirstName />
+            </div>
 
-            <InputText @bind-Value=loginForm.LastName />
+            <div>
+                <label for="courier-login-lastname">Prezime: </label>
+                <InputText id="courier-login-lastname" class="form-control" @bind-Value=courierLoginForm.LastName />
+            </div>
+
+            <button type="submit" class="btn btn-primary">Prijavi se</button>
 
         </EditForm>
-        <button class="btn btn-warning" type="submit">Prijavi se</button>
+
+    }
+    else if (Type == "user")
+    {
+        @if(Message == "success")
+        {
+            <div @*class="alert"*@>
+                Nalog uspešno kreiran!
+            </div>
+        }
+
+        <EditForm Model=@userLoginForm OnSubmit="@HandleLoginFormSubmission">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div>
+                <label for="user-login-email">Email: </label>
+                <InputText id="user-login-email" class="form-control" @bind-Value=userLoginForm.EmailAddress />
+            </div>
+
+            <div>
+                <label for="user-login-password">Lozinka: </label>
+                <InputText id="user-login-password" class="form-control" @bind-Value=userLoginForm.Password />
+            </div>
+
+            <button type="submit" class="btn btn-primary">Prijavi se</button>
+
+        </EditForm>
     }
     else
     {
@@ -30,18 +64,26 @@
 @code {
     [Parameter] public string Type { get; set; } = string.Empty;
 
-    private LoginForm loginForm = new();
+    [Parameter] public string Message { get; set; } = string.Empty;
 
-    async void HandleLoginFormSubmision(EditContext context)
+    private UserLoginForm userLoginForm = new();
+    private CourierLoginForm courierLoginForm = new();
+
+
+    protected override void OnParametersSet()
     {
-        bool dataIsValid = context.Validate();
-        if (dataIsValid)
-        {
-            LoginForm form = (LoginForm)context.Model;
+        base.OnParametersSet();
+        StateHasChanged();
+    }
 
+    async void HandleLoginFormSubmission(EditContext context)
+    {
+        if (context.Validate())
+        {
 
             if (Type == "courier")
             {
+                CourierLoginForm form = (CourierLoginForm)context.Model;
                 //var response = await HttpClient.GetFromJsonAsync<Courier>(@"/api/Courier/GetCourierLogin/$firstName/$lastName");
                 var response = await HttpClient.GetAsync($"/api/Courier/GetCourierLogin/{form.FirstName}/{form.LastName}");
                 if(response.IsSuccessStatusCode)
@@ -51,13 +93,15 @@
                     if (content != null)
                     {
                         AppState.LogInAsCourier(content);
+                        NavManager.NavigateTo("/dashboard");
                     }
                 }
             }
             else if(Type == "user")
             {
+                UserLoginForm form = (UserLoginForm)context.Model;
                 //var response = await HttpClient.GetFromJsonAsync<Courier>(@"/api/Courier/GetCourierLogin/$firstName/$lastName");
-                var response = await HttpClient.GetAsync($"/api/UserAccount/LogIn/{form.FirstName}/{form.LastName}");
+                var response = await HttpClient.GetAsync($"/api/UserAccount/LogIn/{form.EmailAddress}/{form.Password}");
                 if (response.IsSuccessStatusCode)
                 {
                     var content = await response.Content.ReadFromJsonAsync<UserAccount>();
@@ -65,6 +109,7 @@
                     if (content != null)
                     {
                         AppState.LogInAsUser(content);
+                        NavManager.NavigateTo("/packages");
                     }
                 }
             }

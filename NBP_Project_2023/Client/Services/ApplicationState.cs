@@ -12,21 +12,18 @@ namespace NBP_Project_2023.Client.Services
     public class ApplicationState
     {
         public AccountTypeEnum AccountType { get; private set; } = AccountTypeEnum.NoAccount;
-        private UserAccount? UserAccount = null;
-        private Courier? Courier = null;
-
+        public UserAccount? UserAccount { get; private set; } = null;
+        public Courier? Courier { get; private set; } = null;
         
         private void NotifyStateChanged() => OnStateChange?.Invoke();
         public event Action? OnStateChange;
-
-
-
 
         public void LogInAsUser(UserAccount user)
         {
             AccountType = AccountTypeEnum.User;
             UserAccount = user;
             Courier = null;
+
             NotifyStateChanged();
 
         }

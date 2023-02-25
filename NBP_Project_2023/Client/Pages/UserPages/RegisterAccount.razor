@@ -1,0 +1,108 @@
+﻿@page "/register"
+@inject ApplicationState AppState
+@inject HttpClient HttpClient
+@inject NavigationManager NavManager
+@using NBP_Project_2023.Shared
+
+<h3>RegisterAccount</h3>
+
+@*dodati za pojedinacne poruke anotacije itd*@ 
+
+<EditForm Model=@userRegForm OnSubmit="@HandleUserRegFormSubmission">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div>
+        <label for="user-reg-firstname">Ime: </label>
+        <InputText id="user-reg-firstname" class="form-control" @bind-Value=userRegForm.FirstName />
+    </div>
+
+    <div>
+        <label for="user-reg-lastname">Prezime: </label>
+        <InputText id="user-reg-lastname" class="form-control" @bind-Value=userRegForm.LastName />
+    </div>
+
+    <div>
+        <label for="user-reg-email">Email: </label>
+        <InputText id="user-reg-email" class="form-control" @bind-Value=userRegForm.Email />
+    </div>
+
+    <div>
+        <label for="user-reg-password">Lozinka: </label>
+        <InputText id="user-reg-password" class="form-control" @bind-Value=userRegForm.Password />
+    </div>
+
+    <div>
+        <label for="user-reg-street">Ulica: </label>
+        <InputText id="user-reg-street" class="form-control" @bind-Value=userRegForm.Street />
+    </div>
+
+    <div>
+        <label for="user-reg-street-number">Broj: </label>
+        <InputNumber id="user-reg-street-number" class="form-control" @bind-Value=userRegForm.StreetNumber/>
+    </div>
+
+    <div>
+        <label for="user-reg-city">Grad: </label>
+        <InputText id="user-reg-city" class="form-control" @bind-Value=userRegForm.City />
+    </div>
+
+    <div>
+        <label for="user-reg-postal-code">Poštanski broj: </label>
+        <InputNumber id="user-reg-postal-code" class="form-control" @bind-Value=userRegForm.PostalCode />
+    </div>
+
+    <div>
+        <label for="user-reg-phone">Broj telefona: </label>
+        <InputText id="user-reg-phone" class="form-control" @bind-Value=userRegForm.PhoneNumber />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Registruj nalog</button>
+
+    @if (ErrorOccured)
+    {
+        <span class="alert">Došlo je do greške prilikom kreiranja naloga, pokušajte ponovo!</span>
+    }
+
+</EditForm>
+
+
+
+@code {
+    private UserRegistrationForm userRegForm = new();
+
+    private bool ErrorOccured = false;
+
+    async void HandleUserRegFormSubmission(EditContext context)
+    {
+        if(context.Validate())
+        {
+            UserRegistrationForm form = (UserRegistrationForm)context.Model;
+            UserAccount acc = new UserAccount
+            { 
+                Id = 0,
+                FirstName = form.FirstName,
+                LastName = form.LastName,
+                Email = form.Email, 
+                Password = form.Password,
+                Street = form.Street,
+                StreetNumber = form.StreetNumber,
+                City = form.City,
+                PostalCode = form.PostalCode,
+                PhoneNumber = form.PhoneNumber
+            };
+
+            var response = await HttpClient.PostAsJsonAsync("/api/UserAccount/RegisterUserAccount", acc);
+
+            if(response.IsSuccessStatusCode)
+            {
+                NavManager.NavigateTo("/login/user/success");
+            }
+            else
+            {
+                ErrorOccured = true;
+                StateHasChanged();
+            }
+        }
+    }
+}

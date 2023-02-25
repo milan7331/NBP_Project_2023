@@ -1,0 +1,25 @@
+﻿@page "/dashboard"
+@inject ApplicationState AppState
+@inject NavigationManager NavManager
+
+<h3>Dashboard</h3>
+
+@if (AppState.AccountType != AccountTypeEnum.Courier)
+{
+    <h3>Došlo je do greške prilikom prijave.</h3>
+}
+else
+{
+
+}
+@code {
+    protected override Task OnInitializedAsync()
+    {
+        if (AppState.AccountType != AccountTypeEnum.Courier || AppState.Courier == null)
+        {
+            NavManager.NavigateTo("/login/courier");
+        }
+        return base.OnInitializedAsync();
+    }
+
+}

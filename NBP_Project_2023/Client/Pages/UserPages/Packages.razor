@@ -1,0 +1,25 @@
+﻿@page "/packages"
+@inject ApplicationState AppState
+@inject NavigationManager NavManager
+
+<h3>Packages</h3>
+
+@if (AppState.AccountType != AccountTypeEnum.User)
+{
+    <h3>Došlo je do greške prilikom prijave.</h3>
+}
+else
+{
+    
+}
+@code {
+    protected override Task OnInitializedAsync()
+    {
+        if (AppState.AccountType != AccountTypeEnum.User || AppState.UserAccount == null)
+        {
+            NavManager.NavigateTo("/login/user");
+        }
+        return base.OnInitializedAsync();
+    }
+
+}
