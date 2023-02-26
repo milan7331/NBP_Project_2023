@@ -164,12 +164,12 @@ namespace NBP_Project_2023.Server.Controllers
             {
                 ListOfPackages = await session.ExecuteReadAsync(async tx =>
                 {
-                    IResultCursor result = await tx.RunAsync(@"
+                    IResultCursor cursor = await tx.RunAsync(@"
                         MATCH (post:PostOffice)-[]-(p:Package)
                         WHERE post.PostalCode = $postalCode
                         RETURN p.PackageID AS pid
                     ", new { postalCode });
-                    List<IRecord> resultsList = await result.ToListAsync();
+                    List<IRecord> resultsList = await cursor.ToListAsync();
 
                     List<string> packages = new();
                     if (resultsList.Count > 0)
