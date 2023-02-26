@@ -26,7 +26,7 @@ namespace NBP_Project_2023.Server.Controllers
                 result = await session.ExecuteWriteAsync(async tx =>
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
-                        MERGE (u:UserAccount {Email: $Email})
+                        CREATE (u:UserAccount {Email: $Email})
                         SET u.FirstName = $FirstName
                         SET u.LastName = $LastName
                         SET u.Password = $Password
@@ -64,7 +64,7 @@ namespace NBP_Project_2023.Server.Controllers
                     INode u = record["u"].As<INode>();
                     return new UserAccount
                     {
-                        Id = unchecked((int)u.Id),
+                        Id = u.ElementId.As<int>(),
                         FirstName = u.Properties["FirstName"].As<string>(),
                         LastName = u.Properties["LastName"].As<string>(),
                         Email = u.Properties["Email"].As<string>(),
@@ -101,7 +101,7 @@ namespace NBP_Project_2023.Server.Controllers
                      INode u = record["u"].As<INode>();
                      return new UserAccount
                      {
-                         Id = unchecked((int)u.Id),
+                         Id = u.ElementId.As<int>(),
                          FirstName = u.Properties["FirstName"].As<string>(),
                          LastName = u.Properties["LastName"].As<string>(),
                          Email = u.Properties["Email"].As<string>(),

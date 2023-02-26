@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Neo4j.Driver;
 using NBP_Project_2023.Shared;
 
@@ -27,7 +26,7 @@ namespace NBP_Project_2023.Server.Controllers
                 result = await session.ExecuteWriteAsync(async tx =>
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
-                        MERGE (p:PostOffice {PostalCode: $PostalCode})
+                        CREATE (p:PostOffice {PostalCode: $PostalCode})
                         SET p.City = $City
                         SET p.X = $PostX
                         SET p.Y = $PostY
@@ -108,7 +107,7 @@ namespace NBP_Project_2023.Server.Controllers
                     INode p =  record["p"].As<INode>();
                     return new PostOffice
                     {
-                        Id = unchecked((int)p.Id),
+                        Id = p.ElementId.As<int>(),
                         City = p.Properties["City"].As<string>(),
                         PostalCode = p.Properties["PostalCode"].As<int>(),
                         PostX = p.Properties["X"].As<float>(),
@@ -159,10 +158,10 @@ namespace NBP_Project_2023.Server.Controllers
         public async Task<IActionResult> GetPostOfficePackages(int postalCode)
         {
             IAsyncSession session = _driver.AsyncSession();
-            List<string> ListOfPackages;
+            List<string> packages = new();
             try
             {
-                ListOfPackages = await session.ExecuteReadAsync(async tx =>
+                await session.ExecuteReadAsync(async tx =>
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
                         MATCH (post:PostOffice)-[]-(p:Package)
@@ -171,7 +170,6 @@ namespace NBP_Project_2023.Server.Controllers
                     ", new { postalCode });
                     List<IRecord> resultsList = await cursor.ToListAsync();
 
-                    List<string> packages = new();
                     if (resultsList.Count > 0)
                     {
                         foreach (var x in resultsList)
@@ -180,11 +178,10 @@ namespace NBP_Project_2023.Server.Controllers
                             packages.Add(pid);
                         }
                     }
-                    return packages;
                 });
             }
             finally { await session.CloseAsync(); }
-            return Ok(ListOfPackages);
+            return Ok(packages);
         }
 
         [Route("UpdatePostOffice")]

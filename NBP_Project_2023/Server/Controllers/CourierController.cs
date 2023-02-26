@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using NBP_Project_2023.Shared;
 using Neo4j.Driver;
 
@@ -27,7 +26,7 @@ namespace NBP_Project_2023.Server.Controllers
                 result = await session.ExecuteWriteAsync(async tx =>
                 {
                     IResultCursor cursor = await tx.RunAsync(@"
-                        MERGE (c:Courier {FirstName: $FirstName})
+                        CREATE (c:Courier {FirstName: $FirstName})
                         SET c.LastName = $LastName
                         SET c.CourierStatus = $CourierStatus
                     ", new { courier.FirstName, courier.LastName, courier.CourierStatus });
@@ -85,7 +84,7 @@ namespace NBP_Project_2023.Server.Controllers
                     INode c = record["c"].As<INode>();
                     return new Courier
                     {
-                        Id = unchecked((int)c.Id),
+                        Id = c.ElementId.As<int>(),
                         FirstName = c.Properties["FirstName"].As<string>(),
                         LastName = c.Properties["LastName"].As<string>(),
                         CourierStatus = c.Properties["CourierStatus"].As<string>(),
@@ -118,7 +117,7 @@ namespace NBP_Project_2023.Server.Controllers
                     INode c = record["c"].As<INode>();
                     return new Courier
                     {
-                        Id = unchecked((int)c.Id),
+                        Id = c.ElementId.As<int>(),
                         FirstName = c.Properties["FirstName"].As<string>(),
                         LastName = c.Properties["LastName"].As<string>(),
                         CourierStatus = c.Properties["CourierStatus"].As<string>(),
