@@ -20,65 +20,94 @@ namespace NBP_Project_2023.Server.Controllers
         public async Task<IActionResult> CreateCourier(Courier courier)
         {
             IAsyncSession session = _driver.AsyncSession();
-            int result;
+
+            int result = 0;
+            string query = @"
+                CREATE (c:Courier {FirstName: $FirstName})
+                SET c.LastName = $LastName,
+                c.CourierStatus = $CourierStatus
+            ";
+            var parameters = new
+            {
+                courier.FirstName,
+                courier.LastName,
+                courier.CourierStatus
+            };
+
             try
             {
                 result = await session.ExecuteWriteAsync(async tx =>
                 {
-                    IResultCursor cursor = await tx.RunAsync(@"
-                        CREATE (c:Courier {FirstName: $FirstName})
-                        SET c.LastName = $LastName
-                        SET c.CourierStatus = $CourierStatus
-                    ", new { courier.FirstName, courier.LastName, courier.CourierStatus });
+                    IResultCursor cursor = await tx.RunAsync(query, parameters);
                     IResultSummary summary = await cursor.ConsumeAsync();
                     return summary.Counters.NodesCreated;
                 });
             }
-            finally { await session.CloseAsync(); }
+            finally {
+                await session.CloseAsync();
+            }
+
             if (result == 1) return Ok("User registered successfully!");
+
             return BadRequest("User registration failed!");
         }
 
-        [Route("AddWorkplace/{courierID}/{postalCode}")]
+        [Route("AddWorkplace/{courierId}/{postalCode}")]
         [HttpPost]
-        public async Task<IActionResult> AddWorkplace(int courierID, int postalCode)
+        public async Task<IActionResult> AddWorkplace(int courierId, int postalCode)
         {
             IAsyncSession session = _driver.AsyncSession();
+
             bool result;
+            string query = @"
+                MATCH (c:Courier WHERE ID(c) = $courierId)
+                WITH c
+                MATCH (p:PostOffice{PostalCode:$postalCode})
+                MERGE (c)-[:WorksAt]-(p)
+            ";
+            var parameters = new
+            {
+                courierId,
+                postalCode
+            };
+
             try
             {
                 result = await session.ExecuteWriteAsync(async tx =>
                 {
-                    IResultCursor cursor = await tx.RunAsync(@"
-                        MATCH (c:Courier WHERE ID(c) = $courierID)
-                        WITH c
-                        MATCH (p:PostOffice{PostalCode:$postalCode})
-                        MERGE (c)-[:WorksAt]-(p)
-                    ", new { courierID, postalCode});
+                    IResultCursor cursor = await tx.RunAsync(query, parameters);
                     IResultSummary summary = await cursor.ConsumeAsync();
                     if(summary.Counters.RelationshipsCreated > 0) return true;
                     return false;
                 });
             }
-            finally { await session.CloseAsync(); }
+            finally {
+                await session.CloseAsync();
+            }
+
             if (result) return Ok("Courier workplace added!");
-            else return BadRequest("Something went wrong adding courier workplace!");
+            
+            return BadRequest("Something went wrong adding courier workplace!");
         }
 
-        [Route("GetCourier/{courierID}")]
+        [Route("GetCourier/{courierId}")]
         [HttpGet]
-        public async Task<IActionResult> GetCourier(int courierID)
+        public async Task<IActionResult> GetCourier(int courierId)
         {
             IAsyncSession session = _driver.AsyncSession();
+
             Courier result;
+            string query = @"
+                MATCH (c:Courier WHERE ID(c) = $courierId)-[:WorksAt]-(p:PostOffice)
+                RETURN c, p.PostalCode as code
+            ";
+            var parameters = new { courierId };
+
             try
             {
                 result = await session.ExecuteReadAsync(async tx =>
                 {
-                    IResultCursor cursor = await tx.RunAsync(@"
-                        MATCH (c:Courier WHERE ID(c) = $courierID)-[:WorksAt]-(p:PostOffice)
-                        RETURN c, p.PostalCode as code
-                    ", new { courierID });
+                    IResultCursor cursor = await tx.RunAsync(query, parameters);
                     IRecord record = await cursor.SingleAsync();
                     int PostalCode = record["code"].As<int>();
                     INode c = record["c"].As<INode>();
@@ -92,8 +121,13 @@ namespace NBP_Project_2023.Server.Controllers
                     };
                 });
             }
-            finally { await session.CloseAsync(); }
+            finally
+            {
+                await session.CloseAsync();
+            }
+            
             if (result != null) return Ok(result);
+            
             return BadRequest("This Courier doesn't exist!");
         }
 
@@ -102,16 +136,24 @@ namespace NBP_Project_2023.Server.Controllers
         public async Task<IActionResult> GetCourierLogin(string firstName, string lastName)
         {
             IAsyncSession session = _driver.AsyncSession();
+
             Courier result;
+            string query = @"
+                MATCH (c:Courier)-[:WorksAt]-(p:PostOffice)
+                WHERE c.FirstName = $firstName AND c.LastName = $lastName
+                RETURN c, p.PostalCode as code
+            ";
+            var parameters = new
+            {
+                firstName,
+                lastName
+            };
+
             try
             {
                 result = await session.ExecuteReadAsync(async tx =>
                 {
-                    IResultCursor cursor = await tx.RunAsync(@"
-                        MATCH (c:Courier)-[:WorksAt]-(p:PostOffice)
-                        WHERE c.FirstName = $firstName AND c.LastName = $lastName
-                        RETURN c, p.PostalCode as code
-                    ", new { firstName, lastName });
+                    IResultCursor cursor = await tx.RunAsync(query, parameters);
                     IRecord record = await cursor.SingleAsync();
                     int PostalCode = record["code"].As<int>();
                     INode c = record["c"].As<INode>();
@@ -125,25 +167,34 @@ namespace NBP_Project_2023.Server.Controllers
                     };
                 });
             }
-            finally { await session.CloseAsync(); }
+            finally
+            {
+                await session.CloseAsync();
+            }
+            
             if (result != null) return Ok(result);
+            
             return BadRequest("This Courier doesn't exist!");
         }
 
-        [Route("GetCourierPackages/{courierID}")]
+        [Route("GetCourierPackages/{courierId}")]
         [HttpGet]
-        public async Task<IActionResult> GetCourierPackages(int courierID)
+        public async Task<IActionResult> GetCourierPackages(int courierId)
         {
             IAsyncSession session = _driver.AsyncSession();
+
             List<string> result = new();
+            string query = @"
+                MATCH (c:Courier WHERE ID(c) = $courierId)-[:Has]-(p:Package)
+                RETURN p.PackageID as PackageID
+            ";
+            var parameters = new { courierId };
+
             try
             {
                 await session.ExecuteReadAsync(async tx =>
                 {
-                    IResultCursor cursor = await tx.RunAsync(@"
-                        MATCH (c:Courier WHERE ID(c) = $courierID)-[:Has]-(p:Package)
-                        RETURN p.PackageID as PackageID
-                    ", new { courierID });
+                    IResultCursor cursor = await tx.RunAsync(query, parameters);
                     List<IRecord> records = await cursor.ToListAsync();
                     foreach (var record in records)
                     {
@@ -151,7 +202,11 @@ namespace NBP_Project_2023.Server.Controllers
                     }
                 });
             }
-            finally { await session.CloseAsync(); }
+            finally
+            {
+                await session.CloseAsync();
+            }
+            
             return Ok(result);
         }
 
@@ -160,100 +215,148 @@ namespace NBP_Project_2023.Server.Controllers
         public async Task<IActionResult> EditCourier(Courier courier)
         {
             IAsyncSession session = _driver.AsyncSession();
+
             bool result;
+            string query = @"
+                MATCH (c:Courier WHERE ID(c) = $Id)
+                SET c.FirstName = $FirstName
+                SET c.LastName = $LastName
+                SET c.CourierStatus = $CourierStatus
+            ";
+            var parameters = new
+            {
+                courier.Id,
+                courier.FirstName,
+                courier.LastName,
+                courier.CourierStatus
+            };
+
             try
             {
                 result = await session.ExecuteWriteAsync(async tx =>
                 {
-                    IResultCursor cursor = await tx.RunAsync(@"
-                        MATCH (c:Courier WHERE ID(c) = $Id)
-                        SET c.FirstName = $FirstName
-                        SET c.LastName = $LastName
-                        SET c.CourierStatus = $CourierStatus
-                        ", new { courier.Id, courier.FirstName, courier.LastName, courier.CourierStatus });
+                    IResultCursor cursor = await tx.RunAsync(query, parameters);
                     IResultSummary summary = await cursor.ConsumeAsync();
                     return summary.Counters.ContainsUpdates;
                 });
             }
-            finally { await session.CloseAsync(); }
-            if (result) return Ok("User: " + courier.FirstName + " " + courier.LastName + " updated successfully!");
+            finally
+            {
+                await session.CloseAsync();
+            }
+            
+            if (result) return Ok($"User: {courier.FirstName} {courier.LastName} updated successfully!");
+            
             return BadRequest("Something went wrong updating the courier!");
         }
 
-        [Route("ChangeWorkplace/{courierID}/{newPostalCode}")]
+        [Route("ChangeWorkplace/{courierId}/{newPostalCode}")]
         [HttpPut]
-        public async Task<IActionResult> ChangeWorkplace(int courierID, int newPostalCode)
+        public async Task<IActionResult> ChangeWorkplace(int courierId, int newPostalCode)
         {
             IAsyncSession session = _driver.AsyncSession();
+
             bool result;
+            string query = @"
+                MATCH (c:Courier WHERE ID(c) = $courierId)-[w:WorksAt]-(:PostOffice)
+                DELETE w
+                WITH c
+                MERGE (c)-[:WorksAt]-(:PostOffice{PostalCode:$newPostalCode})
+            ";
+            var parameters = new
+            {
+                courierId, newPostalCode
+            };
+
             try
             {
                 result = await session.ExecuteWriteAsync(async tx =>
                 {
-                    IResultCursor cursor = await tx.RunAsync(@"
-                        MATCH (c:Courier WHERE ID(c) = $courierID)-[w:WorksAt]-(:PostOffice)
-                        DELETE w
-                        WITH c
-                        MERGE (c)-[:WorksAt]-(:PostOffice{PostalCode:$newPostalCode})
-                    ", new { courierID, newPostalCode });
+                    IResultCursor cursor = await tx.RunAsync(query, parameters);
                     IResultSummary summary = await cursor.ConsumeAsync();
                     if (summary.Counters.RelationshipsCreated == 1 && summary.Counters.RelationshipsDeleted == 1) return true;
                     return false;
                 });
             }
-            finally { await session.CloseAsync(); }
+            finally
+            {
+                await session.CloseAsync();
+            }
+
             if (result) return Ok("Courier workplace changed!");
+            
             return BadRequest("Something went wrong changing the workplace!");
         }
 
-        [Route("DeliverPackageToPostOffice/{courierID}/{packageID}")]
+        [Route("DeliverPackageToPostOffice/{courierId}/{packageId}")]
         [HttpPut]
-        public async Task<IActionResult> DeliverPackageToPostOffice(int courierID, string packageID)
+        public async Task<IActionResult> DeliverPackageToPostOffice(int courierId, string packageId)
         {
             IAsyncSession session = _driver.AsyncSession();
+
             bool result;
+            string query = @"
+                MATCH (c:Courier WHERE ID(c) = $courierId)-[h:Has]-(p:Package{PackageID:$packageId})
+                DELETE h
+                WITH c, p
+                MATCH (c)-[:WorksAt]-(post:PostOffice)
+                MERGE (post)-[:Has]-(p)
+            ";
+            var parameters = new
+            {
+                packageId, courierId
+            };
+
             try
             {
                 result = await session.ExecuteWriteAsync(async tx =>
                 {
-                    IResultCursor cursor = await tx.RunAsync(@"
-                        MATCH (c:Courier WHERE ID(c) = $courierID)-[h:Has]-(p:Package{PackageID:$packageID})
-                        DELETE h
-                        WITH c, p
-                        MATCH (c)-[:WorksAt]-(post:PostOffice)
-                        MERGE (post)-[:Has]-(p)
-                    ", new {packageID, courierID});
+                    IResultCursor cursor = await tx.RunAsync(query, parameters);
                     IResultSummary summary = await cursor.ConsumeAsync();
                     if (summary.Counters.RelationshipsDeleted == 1 && summary.Counters.RelationshipsCreated == 1) return true;
                     return false;
                 });
             }
-            finally { await session.CloseAsync(); }
+            finally
+            {
+                await session.CloseAsync();
+            }
+
             if (result) return Ok("Package delivered successfully!");
+            
             return BadRequest("Something went wrong delivering package!");
         }
 
-        [Route("DeleteCourier/{courierID}")]
+        [Route("DeleteCourier/{courierId}")]
         [HttpDelete]
-        public async Task<IActionResult> DeleteCourier(int courierID)
+        public async Task<IActionResult> DeleteCourier(int courierId)
         {
             IAsyncSession session = _driver.AsyncSession();
+
             int result;
+            string query = @"
+                MATCH (c:Courier)
+                WHERE ID(c) = $courierId
+                DETACH DELETE c
+            ";
+            var parameters = new { courierId };
+            
             try
             {
                 result = await session.ExecuteWriteAsync(async tx =>
                 {
-                    IResultCursor cursor = await tx.RunAsync(@"
-                        MATCH (c:Courier)
-                        WHERE ID(c) = $courierID
-                        DETACH DELETE c
-                    ", new { courierID });
+                    IResultCursor cursor = await tx.RunAsync(query, parameters);
                     IResultSummary summary = await cursor.ConsumeAsync();
                     return summary.Counters.NodesDeleted;
                 });
             }
-            finally { await session.CloseAsync(); }
+            finally
+            {
+                await session.CloseAsync();
+            }
+
             if (result == 1) return Ok("Courier deleted successfully!");
+            
             return BadRequest("Error deleting courier!");
         }
     }
