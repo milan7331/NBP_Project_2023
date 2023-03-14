@@ -1,25 +1,132 @@
-﻿@page "/packages"
+﻿@page "/packages/{showpackages}"
 @inject ApplicationState AppState
 @inject NavigationManager NavManager
+@inject HttpClient HttpClient
+@using NBP_Project_2023.Shared
 
-<h3>Packages</h3>
-
-@if (AppState.AccountType != AccountTypeEnum.User)
+@if(showPackages == "sent")
 {
-    <h3>Došlo je do greške prilikom prijave.</h3>
+    <h3>Poslate pošiljke</h3>
 }
 else
 {
-    
+    <h3>Pošiljke</h3>
 }
+
+<br />
+
+<button @onclick=TogglePackageGroup>
+    @if (showPackages == "sent")
+    {
+        <span>Prikaži pošiljke</span>
+    }
+    else
+    {
+        <span>Prikaži poslate pošiljke</span>
+    }
+</button>
+
+<br />
+
+<div>
+    <table>
+        <thead>
+            <tr>
+                <th>
+                    Broj za praćenje paketa
+                </th>
+                <th>
+                    Sadržaj paketa
+                </th>
+                <th>
+                    Očekivano vreme isporuke
+                </th>
+                <th>
+
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (Package package in packages)
+            {
+                <tr>
+                    <td>
+                        @package.PackageID
+                    </td>
+                    <td>
+                        @package.Content
+                    </td>
+                    <td>
+                        @package.EstimatedArrivalDate
+                    </td>
+                    <td>
+                        <NavLink>Detaljnije o paketu</NavLink>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+
+
 @code {
+    [Parameter]
+    public string showPackages { get; set; } = "*";
+
+    private string api_url = string.Empty;
+
+    private List<Package> packages = new();
+
     protected override Task OnInitializedAsync()
     {
         if (AppState.AccountType != AccountTypeEnum.User || AppState.UserAccount == null)
         {
             NavManager.NavigateTo("/login/user");
         }
+
+        api_url = $"/api/Package/GetPackages/{AppState.UserAccount!.Email}";
+        GetPackages();
         return base.OnInitializedAsync();
+    }
+
+    private void TogglePackageGroup()
+    {
+        switch (showPackages)
+        {
+            case ("sent"):
+                showPackages = "*";
+                api_url = $"/api/Package/GetPackages/{AppState.UserAccount!.Email}";
+                break;
+
+            case ("*"):
+                showPackages = "sent";
+                api_url = $"/api/Package/GetSentPackages/{AppState.UserAccount!.Email}";
+                break;
+
+            default:
+                Console.WriteLine("Došlo je do geške prilikom promene tipa paketa za prikazivanje!");
+                break;
+        }
+
+        GetPackages();
+    }
+
+    private async void GetPackages()
+    {
+        packages.Clear();
+
+        var response = await HttpClient.GetAsync(api_url);
+
+        if (response.IsSuccessStatusCode)
+        {
+            var content = await response.Content.ReadFromJsonAsync<List<Package>>();
+            if(content != null && content.Count > 0)
+            {
+                packages.AddRange(content);
+            }
+        }
+        StateHasChanged();
     }
 
 }

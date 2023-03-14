@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.DataProtection.KeyManagement.Internal;
+using Microsoft.AspNetCore.Mvc;
 using NBP_Project_2023.Shared;
 using Neo4j.Driver;
 
@@ -64,7 +65,7 @@ namespace NBP_Project_2023.Server.Controllers
                     INode u = record["u"].As<INode>();
                     return new UserAccount
                     {
-                        Id = u.ElementId.As<int>(),
+                        Id = Helper.GetIDfromINodeElementId(u.ElementId.As<string>()),
                         FirstName = u.Properties["FirstName"].As<string>(),
                         LastName = u.Properties["LastName"].As<string>(),
                         Email = u.Properties["Email"].As<string>(),
@@ -101,7 +102,7 @@ namespace NBP_Project_2023.Server.Controllers
                      INode u = record["u"].As<INode>();
                      return new UserAccount
                      {
-                         Id = u.ElementId.As<int>(),
+                         Id = Helper.GetIDfromINodeElementId(u.ElementId.As<string>()),
                          FirstName = u.Properties["FirstName"].As<string>(),
                          LastName = u.Properties["LastName"].As<string>(),
                          Email = u.Properties["Email"].As<string>(),
@@ -117,6 +118,34 @@ namespace NBP_Project_2023.Server.Controllers
             finally { await session.CloseAsync(); }
             if (result != null) return Ok(result);
             return BadRequest("This UserAccount doesn't exist!");
+        }
+
+        [Route("CheckIfUserAccountExists/{email}")]
+        [HttpGet]
+        public async Task<IActionResult> CheckIfUserAccountExists(string email)
+        {
+            IAsyncSession session = _driver.AsyncSession();
+            bool result = false;
+            try
+            {
+                await session.ExecuteReadAsync(async tx =>
+                {
+                    string query = @"
+                        MATCH (u:UserAccount)
+                        WHERE u.Email = $email
+                        RETURN COUNT(u) > 0 AS node_exists
+                    ";
+                    IResultCursor cursor = await tx.RunAsync(query, new { email });
+                    IRecord record = await cursor.SingleAsync();
+
+                    if (record != null && record["node_exists"].As<int>() > 0)
+                    {
+                        result = true;
+                    }
+                });
+            }
+            finally { await session.CloseAsync(); }
+            return Ok(result);
         }
 
         [Route("EditUserAccount")]

@@ -1,7 +1,128 @@
 ﻿@page "/accountdetails"
+@inject ApplicationState AppState
+@inject HttpClient HttpClient
+@inject NavigationManager NavManager
+@using NBP_Project_2023.Shared
 
 <h3>AccountDetails</h3>
 
-@code {
+<div>
+    <div>
+        <div>
+            <h5>Ime: </h5> <h6>@AppState.UserAccount!.FirstName</h6>
+        </div>
+        <div>
+            <h5>Prezime: </h5> <h6>@AppState.UserAccount!.LastName</h6>
+        </div>
+        <div>
+            <h5>Adresa E-pošte: </h5> <h6>@AppState.UserAccount!.Email</h6>
+        </div>
+    </div>
 
+    <div>
+        <EditForm Model=@editUserForm OnSubmit="@HandleEditAccountSubmission">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div>
+                <label for="user-edit-password">Lozinka: </label>
+                <InputText id="user-edit-password" class="form-control" @bind-Value=editUserForm.Password />
+            </div>
+
+            <div>
+                <label for="user-edit-street">Ulica: </label>
+                <InputText id="user-edit-street" class="form-control" @bind-Value=editUserForm.Street />
+            </div>
+
+            <div>
+                <label for="user-edit-street-number">Broj: </label>
+                <InputNumber id="user-edit-street-number" class="form-control" @bind-Value=editUserForm.StreetNumber />
+            </div>
+
+            <div>
+                <label for="user-edit-city">Grad: </label>
+                <InputText id="user-edit-city" class="form-control" @bind-Value=editUserForm.City />
+            </div>
+
+            <div>
+                <label for="user-edit-postal-code">Poštanski broj: </label>
+                <InputNumber id="user-edit-postal-code" class="form-control" @bind-Value=editUserForm.PostalCode />
+            </div>
+
+            <div>
+                <label for="user-edit-phone">Broj telefona: </label>
+                <InputText id="user-edit-phone" class="form-control" @bind-Value=editUserForm.PhoneNumber />
+            </div>
+
+            <button type="submit" class="btn btn-primary">Sačuvaj izmene</button>
+
+            @if (ErrorOccured)
+            {
+                <span class="alert">Došlo je do greške prilikom snimanja izmena naloga, pokušajte ponovo!</span>
+            }
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private EditUserAccountForm editUserForm = new();
+
+    private bool ErrorOccured = false;
+
+    protected override Task OnInitializedAsync()
+    {
+        if (AppState.AccountType != AccountTypeEnum.User || AppState.UserAccount == null)
+        {
+            NavManager.NavigateTo("/login/user");
+        }
+        return base.OnInitializedAsync();
+    }
+
+
+    async void HandleEditAccountSubmission(EditContext context)
+    {
+        if(context.Validate())
+        {
+            EditUserAccountForm form = (EditUserAccountForm)context.Model;
+            UserAccount acc = new UserAccount
+            {
+                // fiksne vrednosti koje nije moguće promeniti nakon kreiranja naloga
+
+                Id = AppState.UserAccount!.Id,
+                FirstName = AppState.UserAccount.FirstName,
+                LastName = AppState.UserAccount.LastName,
+                Email = AppState.UserAccount.Email,
+
+                // ostale promenljive vrednosti iz forme
+
+                Password = form.Password,
+                Street = form.Street,
+                StreetNumber = form.StreetNumber,
+                City = form.City,
+                PostalCode = form.PostalCode,
+                PhoneNumber = form.PhoneNumber
+            };
+            var response = await HttpClient.PutAsJsonAsync("/api/UserAccount/EditUserAccount", acc);
+
+            if (response.IsSuccessStatusCode)
+            {
+                AppState.UserAccount.Password = form.Password;
+                AppState.UserAccount.Street = form.Street;
+                AppState.UserAccount.StreetNumber = form.StreetNumber;
+                AppState.UserAccount.City = form.City;
+                AppState.UserAccount.PostalCode = form.PostalCode;
+                AppState.UserAccount.PhoneNumber = form.PhoneNumber;
+
+                NavManager.NavigateTo("/accountdetails");
+            }
+            else
+            {
+                ErrorOccured = true;
+                StateHasChanged();
+            }
+
+        }
+
+        
+    }
 }

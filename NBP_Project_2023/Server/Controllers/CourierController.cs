@@ -84,7 +84,7 @@ namespace NBP_Project_2023.Server.Controllers
                     INode c = record["c"].As<INode>();
                     return new Courier
                     {
-                        Id = c.ElementId.As<int>(),
+                        Id = Helper.GetIDfromINodeElementId(c.ElementId.As<string>()),
                         FirstName = c.Properties["FirstName"].As<string>(),
                         LastName = c.Properties["LastName"].As<string>(),
                         CourierStatus = c.Properties["CourierStatus"].As<string>(),
@@ -117,7 +117,7 @@ namespace NBP_Project_2023.Server.Controllers
                     INode c = record["c"].As<INode>();
                     return new Courier
                     {
-                        Id = c.ElementId.As<int>(),
+                        Id = Helper.GetIDfromINodeElementId(c.ElementId.As<string>()),
                         FirstName = c.Properties["FirstName"].As<string>(),
                         LastName = c.Properties["LastName"].As<string>(),
                         CourierStatus = c.Properties["CourierStatus"].As<string>(),

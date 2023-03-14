@@ -6,7 +6,7 @@
 
 <h3>RegisterAccount</h3>
 
-@*dodati za pojedinacne poruke anotacije itd*@ 
+@*možda dodati za pojedinacne poruke anotacije itd*@ 
 
 <EditForm Model=@userRegForm OnSubmit="@HandleUserRegFormSubmission">
     <DataAnnotationsValidator />
@@ -73,7 +73,7 @@
 
     private bool ErrorOccured = false;
 
-    async void HandleUserRegFormSubmission(EditContext context)
+    private async void HandleUserRegFormSubmission(EditContext context)
     {
         if(context.Validate())
         {

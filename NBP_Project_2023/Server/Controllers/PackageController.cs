@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Neo4j.Driver;
 using NBP_Project_2023.Shared;
+using NBP_Project_2023.Client.Pages.UserPages;
+using System.Collections.Generic;
 
 namespace NBP_Project_2023.Server.Controllers
 {
@@ -25,22 +27,40 @@ namespace NBP_Project_2023.Server.Controllers
             {
                 result = await session.ExecuteWriteAsync(async tx =>
                 {
-                    IResultCursor cursor = await tx.RunAsync(@"
-                        CREATE (p:Package {PackageID:$PackageID}
-                        SET p.Content = $Content
-                        SET p.Description = $Description
-                        SET p.Weight = $Weight
-                        SET p.Price = $Price
-                        SET p.SenderEmail = $SenderEmail
-                        SET p.ReceiverEmail = $ReceiverEmail
-                        SET p.EstimatedArrivalDate = $EstimatedArrivalDate
-                    ", new { package.PackageID, package.Content, package.Description, package.Weight, package.Price, package.SenderEmail, package.ReceiverEmail, package.EstimatedArrivalDate });
+                    string query = @"
+                        CREATE (p:Package)
+                        SET p.PackageID = $PackageID, 
+                        p.Content = $Content,
+                        p.Description = $Description,
+                        p.Weight = $Weight,
+                        p.Price = $Price,
+                        p.SenderEmail = $SenderEmail,
+                        p.ReceiverEmail = $ReceiverEmail,
+                        p.EstimatedArrivalDate = $EstimatedArrivalDate,
+                        p.PackageStatus = $PackageStatus
+                    ";
+
+                    var parameters = new
+                    {
+                        package.PackageID,
+                        package.Content,
+                        package.Description,
+                        package.Weight,
+                        package.Price,
+                        package.SenderEmail,
+                        package.ReceiverEmail,
+                        package.EstimatedArrivalDate,
+                        package.PackageStatus
+                    };
+
+                    IResultCursor cursor = await tx.RunAsync(query, parameters);
                     IResultSummary summary = await cursor.ConsumeAsync();
                     return summary.Counters.NodesCreated;
                 });
             }
             finally { await session.CloseAsync(); }
-            if(result == 1) { return Ok("Package created successfuly!"); }
+            if(result == 1)
+                return Ok("Package created successfuly!");
             return BadRequest("Error creating package!");
         }
 
@@ -63,7 +83,7 @@ namespace NBP_Project_2023.Server.Controllers
                     INode p = record["p"].As<INode>();
                     return new Package
                     {
-                        Id = p.ElementId.As<int>(),
+                        Id = Helper.GetIDfromINodeElementId(p.ElementId.As<string>()),
                         PackageID = p.Properties["PackageID"].As<string>(),
                         Content = p.Properties["Content"].As<string>(),
                         Description = p.Properties["Description"].As<string>(),
@@ -71,7 +91,8 @@ namespace NBP_Project_2023.Server.Controllers
                         Price = p.Properties["Price"].As<float>(),
                         SenderEmail = p.Properties["SenderEmail"].As<string>(), 
                         ReceiverEmail = p.Properties["ReceiverEmail"].As<string>(),
-                        EstimatedArrivalDate = p.Properties["EstimatedArrivalDate"].As<DateTime>()
+                        EstimatedArrivalDate = p.Properties["EstimatedArrivalDate"].As<DateTime>(),
+                        PackageStatus = p.Properties["PackageStatus"].As<string>()
                     };
                 });
             }
@@ -131,9 +152,9 @@ namespace NBP_Project_2023.Server.Controllers
             return BadRequest("Something went wrong determining package location!");
         }
 
-        [Route("GetSenderPackages/{email}")]
+        [Route("GetSentPackages/{email}")]
         [HttpGet]
-        public async Task<IActionResult> GetSenderPackages(string email)
+        public async Task<IActionResult> GetSentPackages(string email)
         {
             IAsyncSession session = _driver.AsyncSession();
             List<Package> packages = new();
@@ -151,7 +172,7 @@ namespace NBP_Project_2023.Server.Controllers
                             INode node = record["p"].As<INode>();
                             Package package = new()
                             {
-                                Id = node.ElementId.As<int>(),
+                                Id = Helper.GetIDfromINodeElementId(node.ElementId.As<string>()),
                                 PackageID = node.Properties["PackageID"].As<string>(),
                                 Content = node.Properties["Content"].As<string>(),
                                 Description = node.Properties["Description"].As<string>(),
@@ -159,7 +180,8 @@ namespace NBP_Project_2023.Server.Controllers
                                 Price = node.Properties["Price"].As<float>(),
                                 SenderEmail = node.Properties["SenderEmail"].As<string>(),
                                 ReceiverEmail = node.Properties["ReceiverEmail"].As<string>(),
-                                EstimatedArrivalDate = node.Properties["EstimatedArrivalDate"].As<DateTime>()
+                                EstimatedArrivalDate = node.Properties["EstimatedArrivalDate"].As<DateTime>(),
+                                PackageStatus = node.Properties["PackageStatus"].As<string>()
                             };
                             packages.Add(package);
                         }
@@ -170,9 +192,9 @@ namespace NBP_Project_2023.Server.Controllers
             return Ok(packages);
         }
 
-        [Route("GetReceiverPackages/{email}")]
+        [Route("GetPackages/{email}")]
         [HttpGet]
-        public async Task<IActionResult> GetReceiverPackages(string email)
+        public async Task<IActionResult> GetPackages(string email)
         {
             IAsyncSession session = _driver.AsyncSession();
             List<Package> packages= new();
@@ -190,7 +212,7 @@ namespace NBP_Project_2023.Server.Controllers
                             INode node = record["p"].As<INode>();
                             Package package = new()
                             {
-                                Id = node.ElementId.As<int>(),
+                                Id = Helper.GetIDfromINodeElementId(node.ElementId.As<string>()),
                                 PackageID = node.Properties["PackageID"].As<string>(),
                                 Content = node.Properties["Content"].As<string>(),
                                 Description = node.Properties["Description"].As<string>(),
@@ -198,7 +220,8 @@ namespace NBP_Project_2023.Server.Controllers
                                 Price = node.Properties["Price"].As<float>(),
                                 SenderEmail = node.Properties["SenderEmail"].As<string>(),
                                 ReceiverEmail = node.Properties["ReceiverEmail"].As<string>(),
-                                EstimatedArrivalDate = node.Properties["EstimatedArrivalDate"].As<DateTime>()
+                                EstimatedArrivalDate = node.Properties["EstimatedArrivalDate"].As<DateTime>(),
+                                PackageStatus = node.Properties["PackageStatus"].As<string>()
                             };
                             packages.Add(package);
                         }
@@ -231,7 +254,8 @@ namespace NBP_Project_2023.Server.Controllers
                         SET p.SenderEmail = $SenderEmail
                         SET p.ReceiverEmail = $ReceiverEmail
                         SET p.EstimatedArrivalDate = $EstimatedArrivalDate
-                    ", new { package.Id, package.PackageID, package.Content, package.Description, package.Weight, package.Price, package.SenderEmail, package.ReceiverEmail, package.EstimatedArrivalDate });
+                        SET p.PackageStatus = $PackageStatus
+                    ", new { package.Id, package.PackageID, package.Content, package.Description, package.Weight, package.Price, package.SenderEmail, package.ReceiverEmail, package.EstimatedArrivalDate, package.PackageStatus });
                     IResultSummary summary = await cursor.ConsumeAsync();
                     return summary.Counters.ContainsUpdates;
                 });

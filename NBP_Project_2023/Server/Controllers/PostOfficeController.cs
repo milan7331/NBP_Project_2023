@@ -107,7 +107,7 @@ namespace NBP_Project_2023.Server.Controllers
                     INode p =  record["p"].As<INode>();
                     return new PostOffice
                     {
-                        Id = p.ElementId.As<int>(),
+                        Id = Helper.GetIDfromINodeElementId(p.ElementId.As<string>()),
                         City = p.Properties["City"].As<string>(),
                         PostalCode = p.Properties["PostalCode"].As<int>(),
                         PostX = p.Properties["X"].As<float>(),

@@ -1,6 +1,144 @@
 ﻿@page "/sendpackage"
+@inject ApplicationState AppState
+@inject HttpClient HttpClient
+@inject NavigationManager NavManager
+@using NBP_Project_2023.Shared
+
 <h3>SendPackage</h3>
 
+<div>
+    <EditForm Model=@packageForm OnSubmit="@HandlePackageCreationFormSubmission">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div>
+            <label for="send-package-receiver-email">E Pošta primaoca: </label>
+            <InputText id="send-package-receiver-email" class="form-control" @bind-Value=packageForm.ReceiverEmail />
+        </div>
+
+        <div>
+            <label for="send-package-content">Sadržaj: </label>
+            <InputText id="send-package-content" class="form-control" @bind-Value=packageForm.Content />
+        </div>
+
+        <div>
+            <label for="send-package-description">Opis: </label>
+            <InputText id="send-package-description" class="form-control" @bind-Value=packageForm.Description />
+        </div>
+
+        <div>
+            <label for="send-package-weight">Težina: </label>
+            <InputNumber id="send-package-weight" class="form-control" @bind-Value=packageForm.Weight />
+        </div>
+
+        <div>
+            <label for="send-package-price">Cena: </label>
+            <InputNumber id="send-package-price" class="form-control" @bind-Value=packageForm.Price />
+        </div>
+
+        <button type="submit" class="btn btn-primary">Registruj pošiljku za slanje</button>
+
+        @if (ErrorOccured)
+        {
+            <span class="alert">Došlo je do greške prilikom obrade paketa! Pokušajte ponovo.</span>
+        }
+
+    </EditForm>
+</div>
+
 @code {
+
+    private bool ErrorOccured = false;
+    private PackageCreationForm packageForm = new();
+
+    protected override Task OnInitializedAsync()
+    {
+        if (AppState.AccountType != AccountTypeEnum.User || AppState.UserAccount == null)
+        {
+            NavManager.NavigateTo("/login/user");
+        }
+        return base.OnInitializedAsync();
+    }
+
+    private async Task<bool> CheckIfReceiverEmailExists(string email)
+    {
+        var response = await HttpClient.GetAsync($"/api/UserAccount/CheckIfUserAccountExists/{email}");
+        bool result = await response.Content.ReadFromJsonAsync<bool>();
+
+        return (response.IsSuccessStatusCode)? result : false;
+    }
+
+    private Package CreatePackageFromForm(PackageCreationForm form)
+    {
+        // PackageID random seed
+        DateTime time = DateTime.Now;
+        Random rand = new();
+        string randStr = time.ToString("yyyyMMddHHmmss") + rand.Next(100).ToString();
+
+        // za očekivano vreme isporuke koristimo isto vreme odozgo
+        switch (time.DayOfWeek)
+        {
+            case DayOfWeek.Friday:
+            case DayOfWeek.Saturday:
+                time.AddDays(4);
+                break;
+
+            case DayOfWeek.Sunday:
+                time.AddDays(3);
+                break;
+
+            default:
+                time.AddDays(2);
+                break;
+        }
+
+        return new Package
+            {
+                // vrednosti koje se automatski generišu
+                Id = 0,
+                PackageID = randStr,
+                SenderEmail = AppState.UserAccount!.Email,
+                EstimatedArrivalDate = time,
+                PackageStatus = PackageState.WaitingForPickup.ToString(),
+
+                // vrednosti koje unosi korisnik
+                Content = form.Content,
+                Description = form.Description,
+                Weight = form.Weight,
+                Price = form.Price,
+                ReceiverEmail = form.ReceiverEmail
+            };
+    }
+
+    private async Task HandlePackageCreationFormSubmission(EditContext context)
+    {
+        ErrorOccured = false;
+        if(context.Validate())
+        {
+            PackageCreationForm form = (PackageCreationForm)context.Model;
+
+            if(await CheckIfReceiverEmailExists(form.ReceiverEmail) == false)
+            {
+                ErrorOccured = true;
+                StateHasChanged();
+                return;
+            }
+
+            Package pkg = CreatePackageFromForm(form);
+
+            var response = await HttpClient.PostAsJsonAsync("api/Package/CreatePackage", pkg);
+
+            if(response.IsSuccessStatusCode)
+            {
+                NavManager.NavigateTo("/packages/true");
+            }
+            else
+            {
+                ErrorOccured = true;
+                StateHasChanged();
+                return;
+            }
+        }
+    }
 
 }

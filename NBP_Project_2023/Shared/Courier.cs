@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace NBP_Project_2023.Shared
 {
-    public enum Status
+    public enum CourierState
     {
         Away = 0,
         Available = 1,
@@ -22,7 +22,7 @@ namespace NBP_Project_2023.Shared
         
         public string LastName { get; set; } = string.Empty;
         
-        public string CourierStatus { get; set; } = Status.Away.ToString(); 
+        public string CourierStatus { get; set; } = CourierState.Away.ToString(); 
         
         public int WorksAt { get; set; } //PostalCode
         
