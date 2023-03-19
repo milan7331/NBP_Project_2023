@@ -1,32 +1,23 @@
-﻿@page "/packages/{showpackages}"
+﻿@page "/packages"
 @inject ApplicationState AppState
 @inject NavigationManager NavManager
 @inject HttpClient HttpClient
 @using NBP_Project_2023.Shared
 
-@if(showPackages == "sent")
+@if(showSentPackages)
 {
     <PageTitle>Poslate pošiljke</PageTitle>
     <h3>Poslate pošiljke</h3>
+    <br />
+    <button @onclick=TogglePackageGroup>Prikaži pošiljke</button>
 }
 else
 {
     <PageTitle>Pošiljke</PageTitle>
     <h3>Pošiljke</h3>
+    <br />
+    <button @onclick=TogglePackageGroup>Prikaži poslate pošiljke</button>
 }
-
-<br />
-
-<button @onclick=TogglePackageGroup>
-    @if (showPackages == "sent")
-    {
-        <span>Prikaži pošiljke</span>
-    }
-    else
-    {
-        <span>Prikaži poslate pošiljke</span>
-    }
-</button>
 
 <br />
 
@@ -73,8 +64,7 @@ else
 
 
 @code {
-    [Parameter]
-    public string showPackages { get; set; } = "*";
+    public bool showSentPackages = false;
 
     private string api_url = string.Empty;
 
@@ -94,22 +84,15 @@ else
 
     private void TogglePackageGroup()
     {
-        switch (showPackages)
+        if(showSentPackages)
         {
-            case ("sent"):
-                showPackages = "*";
-                api_url = $"/api/Package/GetPackages/{AppState.UserAccount!.Email}";
-                break;
-
-            case ("*"):
-                showPackages = "sent";
-                api_url = $"/api/Package/GetSentPackages/{AppState.UserAccount!.Email}";
-                break;
-
-            default:
-                Console.WriteLine("Došlo je do geške prilikom promene tipa paketa za prikazivanje!");
-                break;
+            api_url = $"/api/Package/GetPackages/{AppState.UserAccount!.Email}";
         }
+        else
+        {
+            api_url = $"/api/Package/GetSentPackages/{AppState.UserAccount!.Email}";
+        }
+        showSentPackages = !showSentPackages;
 
         GetPackages();
     }
@@ -133,6 +116,6 @@ else
 
     private void GetPackageDetails(string id)
     {
-        NavManager.NavigateTo($"/details/{id}");
+        NavManager.NavigateTo($"packages/details/{id}");
     }
 }

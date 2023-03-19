@@ -1,4 +1,4 @@
-﻿@page "/details/{packageID}"
+﻿@page "/packages/details/{packageID}"
 @inject ApplicationState AppState
 @inject NavigationManager NavManager
 @inject HttpClient HttpClient
@@ -57,7 +57,8 @@
         {
             <span>Učitavanje...</span>
         }
-        <NavLink href="/packages/*">Nazad na pošiljke</NavLink>
+        <button class="btn btn-primary" @onclick="() => NavManager.NavigateTo('/packages')">Nazad na pošiljke</button>
+        <NavLink href="/packages">Nazad na pošiljke</NavLink>
     }
 </div>
 
