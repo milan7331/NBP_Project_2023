@@ -128,7 +128,7 @@ namespace NBP_Project_2023.Server.Controllers
             
             if (result != null) return Ok(result);
             
-            return BadRequest("This Courier doesn't exist!");
+            return NotFound("This Courier doesn't exist!");
         }
 
         [Route("GetCourierLogin/{firstName}/{lastName}")]
@@ -174,7 +174,7 @@ namespace NBP_Project_2023.Server.Controllers
             
             if (result != null) return Ok(result);
             
-            return BadRequest("This Courier doesn't exist!");
+            return NotFound("This Courier doesn't exist!");
         }
 
         [Route("GetCourierPackages/{courierId}")]
@@ -247,7 +247,7 @@ namespace NBP_Project_2023.Server.Controllers
             
             if (result) return Ok($"User: {courier.FirstName} {courier.LastName} updated successfully!");
             
-            return BadRequest("Something went wrong updating the courier!");
+            return NotFound("The courier doesn't exist!");
         }
 
         [Route("ChangeWorkplace/{courierId}/{newPostalCode}")]
@@ -357,7 +357,7 @@ namespace NBP_Project_2023.Server.Controllers
 
             if (result == 1) return Ok("Courier deleted successfully!");
             
-            return BadRequest("Error deleting courier!");
+            return NotFound("Error deleting courier!");
         }
     }
 }

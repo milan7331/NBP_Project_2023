@@ -6,10 +6,12 @@
 
 @if(showPackages == "sent")
 {
+    <PageTitle>Poslate pošiljke</PageTitle>
     <h3>Poslate pošiljke</h3>
 }
 else
 {
+    <PageTitle>Pošiljke</PageTitle>
     <h3>Pošiljke</h3>
 }
 
@@ -60,7 +62,7 @@ else
                         @package.EstimatedArrivalDate
                     </td>
                     <td>
-                        <NavLink>Detaljnije o paketu</NavLink>
+                        <button @onclick="() => GetPackageDetails(package.PackageID)">Detaljnije o pošiljci</button>
                     </td>
                 </tr>
             }
@@ -129,4 +131,8 @@ else
         StateHasChanged();
     }
 
+    private void GetPackageDetails(string id)
+    {
+        NavManager.NavigateTo($"/details/{id}");
+    }
 }

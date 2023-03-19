@@ -72,7 +72,7 @@ namespace NBP_Project_2023.Server.Controllers
         {
             IAsyncSession session = _driver.AsyncSession();
 
-            Package result;
+            Package? result = null;
             string query = @"
                 MATCH (p:Package)
                 WHERE p.PackageID = $packageId
@@ -109,7 +109,7 @@ namespace NBP_Project_2023.Server.Controllers
             
             if (result != null) return Ok(result);
             
-            return BadRequest("Someting went wrong retrieving package!");
+            return NotFound("The package doesn't exist");
         }
 
         [Route("GetPackageStatus/{packageId}")]
@@ -273,7 +273,7 @@ namespace NBP_Project_2023.Server.Controllers
             {
                 await session.CloseAsync();
             }
-            
+      
             return Ok(packages);
         }
 

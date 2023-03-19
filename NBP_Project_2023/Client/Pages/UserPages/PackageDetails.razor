@@ -1,63 +1,102 @@
-﻿@page "/packages/details"
+﻿@page "/details/{packageID}"
 @inject ApplicationState AppState
 @inject NavigationManager NavManager
 @inject HttpClient HttpClient
 @using NBP_Project_2023.Shared
 
+<PageTitle>Detalji pošiljke</PageTitle>
+
+<h3>Detalji pošiljke</h3>
+
 <div>
-    @if (package == null || AppState.AccountType != AccountTypeEnum.User || AppState.UserAccount == null)
+    @if (packageID == string.Empty || AppState.AccountType != AccountTypeEnum.User || AppState.UserAccount == null)
     {
         <span>Detalji pošiljke ne mogu biti učitani došlo je do greške!</span>
     }
     else
     {
-        <div>
-            <h5>Identifikacioni broj paketa: </h5> <h6>@package.PackageID</h6>
-        </div>
+        if(package != null)
+        {
+            <div>
+                <h5>Identifikacioni broj paketa: </h5> <h6>@package.PackageID</h6>
+            </div>
 
-        <div>
-            <h5>Sadržaj: </h5> <h6>@package.Content</h6>
-        </div>
+            <div>
+                <h5>Sadržaj: </h5> <h6>@package.Content</h6>
+            </div>
 
-        <div>
-            <h5>Opis: </h5> <h6>@package.Description</h6>
-        </div>
+            <div>
+                <h5>Opis: </h5> <h6>@package.Description</h6>
+            </div>
 
-        <div>
-            <h5>Težina (kg): </h5> <h6>@package.Weight</h6>
-        </div>
+            <div>
+                <h5>Težina (kg): </h5> <h6>@package.Weight</h6>
+            </div>
 
-        <div>
-            <h5>Cena (rsd): </h5> <h6>@package.Price</h6>
-        </div>
+            <div>
+                <h5>Cena (rsd): </h5> <h6>@package.Price</h6>
+            </div>
 
-        <div>
-            <h5>E-pošta pošiljaoca: </h5> <h6>@package.SenderEmail</h6>
-        </div>
+            <div>
+                <h5>E-pošta pošiljaoca: </h5> <h6>@package.SenderEmail</h6>
+            </div>
 
-        <div>
-            <h5>E-pošta primaoca: </h5> <h6>@package.ReceiverEmail</h6>
-        </div>
+            <div>
+                <h5>E-pošta primaoca: </h5> <h6>@package.ReceiverEmail</h6>
+            </div>
 
-        <div>
-            <h5>Očekivano vreme prispeća (valjda se tako kaže?): </h5> <h6>@package.EstimatedArrivalDate</h6>
-        </div>
-
-        <NavLink>Nazad</NavLink>
+            <div>
+                <h5>Očekivano vreme prispeća (valjda se tako kaže?): </h5> <h6>@package.EstimatedArrivalDate</h6>
+            </div>
+        }
+        else if (@message != string.Empty)
+        {
+            <span>@message</span>
+        }
+        else
+        {
+            <span>Učitavanje...</span>
+        }
+        <NavLink href="/packages/*">Nazad na pošiljke</NavLink>
     }
-    
 </div>
 
 @code {
     [Parameter]
-    public Package? package { get; set; }
+    public string packageID { get; set; } = string.Empty;
+
+    private Package? package { get; set; }
+
+    private string message = string.Empty;
 
     protected override Task OnParametersSetAsync()
     {
-        if (package == null || AppState.AccountType != AccountTypeEnum.User || AppState.UserAccount == null)
+        if (packageID == string.Empty || AppState.AccountType != AccountTypeEnum.User || AppState.UserAccount == null)
         {
             NavManager.NavigateTo("/login/user");
         }
+        LoadPackageDetails(packageID);
         return base.OnParametersSetAsync();
+    }
+
+    private async void LoadPackageDetails(string id)
+    {
+        message = string.Empty;
+
+        var response = await HttpClient.GetAsync($"/api/Package/GetPackage/{id}");
+
+        if(response.IsSuccessStatusCode)
+        {
+            var content = await response.Content.ReadFromJsonAsync<Package>();
+            if(content != null)
+            {
+                package = content;
+            }
+        }
+        else
+        {
+            message = "Došlo je do greške! Detalji pošiljke nisu dostupni!";
+        }
+        StateHasChanged();
     }
 }
