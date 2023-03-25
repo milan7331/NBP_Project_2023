@@ -10,7 +10,7 @@ namespace NBP_Project_2023.Shared
     {
         Away = 0,
         Available = 1,
-        Busy = 2
+        Working = 2
     }
 
     public class Courier

@@ -15,6 +15,7 @@ namespace NBP_Project_2023.Server.Controllers
             _driver = driver;
         }
 
+        // kreira pošiljku i poziva metodu za njenu dodelu odgovarajućem kuriru
         [Route("CreatePackage")]
         [HttpPost]
         public async Task<IActionResult> CreatePackage(Package package)
@@ -60,11 +61,92 @@ namespace NBP_Project_2023.Server.Controllers
             {
                 await session.CloseAsync();
             }
-            
-            if(result == 1) return Ok("Package created successfuly!");
+
+            if (result == 1)
+            {
+                await AssignCreatedPackage(package.PackageID);
+                return Ok("Package created and linked successfuly!");
+            }
             
             return BadRequest("Error creating package!");
         }
+
+        // novokreirana pošiljka se dodeljuje na listu taskova odabranom kuriru
+        // proverava se da li postoji slobodan kurir bez posla i dodeljuje se njemu
+        // u suprotnom se dodaje kuriru koji ima najmanje trenutnih taskova (pošiljki)
+        // i na kraju ako ni jedan od uslova nije ispunjen dodaje se task kuriru koji trenutno ne radi
+        // jer paketi moraju negde da se povežu a moguće je da vikendom niko ne radi recimo
+        [Route("AssignCreatedPackage/{packageId}")]
+        [HttpPost]
+        public async Task<IActionResult> AssignCreatedPackage(string packageId)
+        {
+            IAsyncSession session = _driver.AsyncSession();
+            bool result = false;
+
+            string availableQuery = @"
+                MATCH (c:Courier)
+                WHERE c.CourierStatus = 'Available'
+                WITH c, rand() AS r
+                ORDER BY r
+                LIMIT 1
+                MATCH (p:Package {PackageID: $packageId})
+                MERGE (c)-[:PackageList]->(p)
+            ";
+            string workingQuery = @"
+                MATCH (c:Courier)
+                WHERE c.CourierStatus = 'Working'
+                OPTIONAL MATCH (c)-[list:PackageList]-()
+                WITH c, COUNT(list) AS listCount
+                ORDER BY listCount
+                LIMIT 1
+                MATCH (p:Package {PackageID: $packageId})
+                MERGE (c)-[:PackageList]->(p)
+            ";
+            string awayQuery = @"
+                MATCH (c:Courier)
+                WHERE c.CourierStatus = 'Away'
+                OPTIONAL MATCH (c)-[list:PackageList]-()
+                WITH c, COUNT(list) AS listCount
+                ORDER BY listCount
+                LIMIT 1
+                MATCH (p:Package {PackageID: $packageId})
+                MERGE (c)-[:PackageList]->(p)
+            ";
+
+            var parameters = new { packageId };
+
+            try
+            {
+                result = await session.ExecuteWriteAsync(async tx =>
+                {
+                    IResultCursor cursor = await tx.RunAsync(availableQuery, parameters);
+                    IResultSummary summary = await cursor.ConsumeAsync();
+                    if (!summary.Counters.ContainsUpdates)
+                    {
+                        cursor = await tx.RunAsync(workingQuery, parameters);
+                        summary = await cursor.ConsumeAsync();
+                    }
+                    if (!summary.Counters.ContainsUpdates)
+                    {
+                        cursor = await tx.RunAsync(awayQuery, parameters);
+                        summary = await cursor.ConsumeAsync();
+                    }
+                    return summary.Counters.ContainsUpdates;
+                });
+            }
+            finally
+            {
+                await session.CloseAsync();
+            }
+
+            if (result)
+            {
+                return Ok("PackageAssignedToCourier");
+            }
+
+            return BadRequest("Error assigning package!");
+        }
+
 
         [Route("GetPackage/{packageId}")]
         [HttpGet]
@@ -111,7 +193,7 @@ namespace NBP_Project_2023.Server.Controllers
             
             return NotFound("The package doesn't exist");
         }
-
+    
         [Route("GetPackageStatus/{packageId}")]
         [HttpGet]
         public async Task<IActionResult> GetPackageStatus(string packageId)
@@ -145,6 +227,8 @@ namespace NBP_Project_2023.Server.Controllers
             return BadRequest("Someting went wrong retrieving package status!");
         }
 
+
+        // treba fixx
         [Route("GetPackageLocation/{packageId}")]
         [HttpGet]
         public async Task<IActionResult> GetPackageLocation(string packageId)
@@ -278,6 +362,56 @@ namespace NBP_Project_2023.Server.Controllers
         }
 
 
+        // vraća listu svih pošilki koje kurir treba da odradi
+        [Route("GetCourierPackageList/{courierId}")]
+        [HttpGet]
+        public async Task<IActionResult> GetCourierPackageList(int courierId)
+        {
+            IAsyncSession session = _driver.AsyncSession();
+
+            List<Package> result = new();
+            string query = @"
+                MATCH (c:Courier)-[:PackageList]-(p:Package)
+                WHERE ID(c) = $courierId
+                RETURN p AS package 
+            ";
+
+            var parameters = new { courierId };
+
+            try
+            {
+                await session.ExecuteReadAsync(async tx =>
+                {
+                    IResultCursor cursor = await tx.RunAsync(query, parameters);
+                    List<IRecord> records = await cursor.ToListAsync();
+                    foreach (var record in records)
+                    {
+                        INode p = record["package"].As<INode>();
+                        Package package = new()
+                        {
+                            Id = Helper.GetIDfromINodeElementId(p.ElementId.As<string>()),
+                            PackageID = p.Properties["PackageID"].As<string>(),
+                            Content = p.Properties["Content"].As<string>(),
+                            Description = p.Properties["Description"].As<string>(),
+                            Weight = p.Properties["Weight"].As<float>(),
+                            Price = p.Properties["Price"].As<float>(),
+                            SenderEmail = p.Properties["SenderEmail"].As<string>(),
+                            ReceiverEmail = p.Properties["ReceiverEmail"].As<string>(),
+                            EstimatedArrivalDate = p.Properties["EstimatedArrivalDate"].As<DateTime>(),
+                            PackageStatus = p.Properties["PackageStatus"].As<string>()
+                        };
+                        result.Add(package);
+                    }
+                });
+            }
+            finally
+            {
+                await session.CloseAsync();
+            }
+
+            return Ok(result);
+        }
+
         [Route("EditPackage")]
         [HttpPut]
         public async Task<IActionResult> EditPackage(Package package)
@@ -363,5 +497,6 @@ namespace NBP_Project_2023.Server.Controllers
             
             return BadRequest("Error deleting package!");
         }
+
     }
 }

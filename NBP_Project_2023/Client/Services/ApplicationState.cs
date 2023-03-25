@@ -1,5 +1,6 @@
 ﻿using NBP_Project_2023.Shared;
 
+
 namespace NBP_Project_2023.Client.Services
 {
     public enum AccountTypeEnum
@@ -35,6 +36,15 @@ namespace NBP_Project_2023.Client.Services
             Courier = courier;
             NotifyStateChanged();
 
+        }
+
+        public void ChangeCourierStatus(Courier courier)
+        {
+            if(AccountType == AccountTypeEnum.Courier && Courier != null)
+            {
+                Courier = courier;
+                NotifyStateChanged();
+            }
         }
 
         public void LogOut()

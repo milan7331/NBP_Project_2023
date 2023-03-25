@@ -89,7 +89,6 @@
                 if(response.IsSuccessStatusCode)
                 {
                     var content = await response.Content.ReadFromJsonAsync<Courier>();
-                    //ne mora not null ne bi bio successful status code da je null lmao
                     if (content != null)
                     {
                         AppState.LogInAsCourier(content);
@@ -100,12 +99,10 @@
             else if(Type == "user")
             {
                 UserLoginForm form = (UserLoginForm)context.Model;
-                //var response = await HttpClient.GetFromJsonAsync<Courier>(@"/api/Courier/GetCourierLogin/$firstName/$lastName");
                 var response = await HttpClient.GetAsync($"/api/UserAccount/LogIn/{form.EmailAddress}/{form.Password}");
                 if (response.IsSuccessStatusCode)
                 {
                     var content = await response.Content.ReadFromJsonAsync<UserAccount>();
-                    //ne mora not null ne bi bio successful status code da je null lmao
                     if (content != null)
                     {
                         AppState.LogInAsUser(content);

@@ -2,10 +2,10 @@
 {
     public enum PackageState
     {
-        WaitingForPickup = 0,
-        InTransit = 1,
-        AtPostOffice = 2,
-        Delivered = 3
+        WaitingForPickup,
+        InTransit,
+        AtPostOffice,
+        Delivered
     }
 
     public class Package

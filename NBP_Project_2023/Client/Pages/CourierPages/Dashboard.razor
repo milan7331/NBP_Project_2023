@@ -1,27 +1,117 @@
 ﻿@page "/dashboard"
 @inject ApplicationState AppState
 @inject NavigationManager NavManager
+@inject HttpClient HttpClient
+@implements IDisposable
+@using NBP_Project_2023.Shared
 
 <PageTitle>Dashboard</PageTitle>
-
 <h3>Dashboard</h3>
-
-@if (AppState.AccountType != AccountTypeEnum.Courier)
+<br />
+@if(AppState.Courier!.CourierStatus == CourierState.Away.ToString())
 {
-    <h3>Došlo je do greške prilikom prijave.</h3>
+    <button @onclick=ToggleCourierShift>Započni smenu</button>
 }
 else
 {
+    <button @onclick=GetCourierPackages>
+        @if (packages.Count < 1)
+        {
+            <span>Učitaj pošiljke</span>
+        }
+        else
+        {
+            <span>Osveži prikaz</span>
+        }
+    </button>
+    <button @onclick=ToggleCourierShift>Završi smenu</button>
+    
+    <br />
+
+    @if(packages.Count > 0)
+    {
+        <div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID pošiljke</th>
+                        <th>Status pošiljke</th>
+                        <th>Sadržaj</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (Package package in packages)
+                    {
+                        <tr>
+                            <td>@package.PackageID</td>
+                            <td>@package.PackageStatus</td>
+                            <td>@package.Content</td>
+                            <td>
+                                <button>Detalji i opcije</button>
+                            </td>
+                        </tr>
+                    }
+
+                </tbody>
+            </table>
+        </div>
+    }
 
 }
+
 @code {
+    private List<Package> packages = new();
+
     protected override Task OnInitializedAsync()
     {
         if (AppState.AccountType != AccountTypeEnum.Courier || AppState.Courier == null)
         {
             NavManager.NavigateTo("/login/courier");
         }
+        AppState.OnStateChange += StateHasChanged;
         return base.OnInitializedAsync();
     }
 
+    private async void ToggleCourierShift()
+    {
+        Courier courier = AppState.Courier!;
+        if(courier.CourierStatus == CourierState.Away.ToString())
+        {
+            courier.CourierStatus = CourierState.Available.ToString();
+        }
+        else
+        {
+            courier.CourierStatus = CourierState.Away.ToString();
+        }
+
+        var response = await HttpClient.PutAsJsonAsync("/api/Courier/EditCourier", courier);
+
+        if(response.IsSuccessStatusCode)
+        {
+            AppState.ChangeCourierStatus(courier);
+        }
+
+    }
+
+    private async void GetCourierPackages()
+    {
+        var response = await HttpClient.GetAsync($"/api/Package/GetCourierPackageList/{AppState.Courier!.Id}");
+
+        if(response.IsSuccessStatusCode)
+        {
+            var content = await response.Content.ReadFromJsonAsync<List<Package>>();
+            if(content != null && content.Count > 0)
+            {
+                packages.AddRange(content);
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        AppState.OnStateChange -= StateHasChanged;
+    }
 }

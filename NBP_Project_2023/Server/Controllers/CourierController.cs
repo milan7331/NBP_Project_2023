@@ -361,4 +361,4 @@ namespace NBP_Project_2023.Server.Controllers
         }
     }
 }
-// KURIR INAČE MOZEŽ DA URADI TAKE PACKAGE I LEAVE PACKAGE??
+
