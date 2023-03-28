@@ -239,9 +239,6 @@ namespace NBP_Project_2023.Server.Controllers
             return Ok(packages);
         }
 
-
-        
-
         [Route("UpdatePostOffice")]
         [HttpPut]
         public async Task<IActionResult> UpdatePostOffice(PostOffice post)

@@ -14,11 +14,11 @@ namespace NBP_Project_2023.Shared
         
         public int PostalCode { get; set; }
         
-        public float PostX { get; set; }
+        //public float PostX { get; set; }
         
-        public float PostY { get; set; }
+        //public float PostY { get; set; }
         
-        public bool IsMainPostOffice { get; set; } = false;
+        //public bool IsMainPostOffice { get; set; } = false;
         
         public List<int> Workers { get; set; } = new List<int>(); // CourierIds
         

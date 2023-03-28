@@ -71,6 +71,7 @@ namespace NBP_Project_2023.Server.Controllers
             
             return BadRequest("Error creating package!");
         }
+
         [Route("LinkPackageToSender/{packageId}")]
         [HttpPost]
         public async Task<IActionResult> LinkPackageToSender(string packageId)
@@ -110,8 +111,6 @@ namespace NBP_Project_2023.Server.Controllers
 
             return BadRequest("Error linking package to sender!");
         }
-
-
 
         // novokreirana pošiljka se dodeljuje na listu taskova odabranom kuriru
         // proverava se da li postoji slobodan kurir bez posla i dodeljuje se njemu
@@ -279,42 +278,43 @@ namespace NBP_Project_2023.Server.Controllers
         }
 
 
-        // treba fixx
-        [Route("GetPackageLocation/{packageId}")]
-        [HttpGet]
-        public async Task<IActionResult> GetPackageLocation(string packageId)
-        {
-            IAsyncSession session = _driver.AsyncSession();
+        // trenutno redundantna metoda, package status je dovoljno detaljan da možemo da zaključimo isto
 
-            List<string> result = new();
-            string query = @"
-                MATCH (x)-[:Has]-(p:Package{PackageID:$packageId})
-                RETURN
-                CASE LABELS(x)
-                    WHEN ['PostOffice'] THEN ['PostOffice', x.PostalCode]
-                    WHEN ['Courier'] THEN ['Courier', ID(x)]
-                END AS result
-            ";
-            var parameters = new { packageId };
+        //[Route("GetPackageLocation/{packageId}")]
+        //[HttpGet]
+        //public async Task<IActionResult> GetPackageLocation(string packageId)
+        //{
+        //    IAsyncSession session = _driver.AsyncSession();
 
-            try
-            {
-                result = await session.ExecuteReadAsync(async tx =>
-                {
-                    IResultCursor cursor = await tx.RunAsync(query, parameters);
-                    IRecord record = await cursor.SingleAsync();
-                    return record["result"].As<List<string>>();
-                });
-            }
-            finally
-            {
-                await session.CloseAsync();
-            }
+        //    List<string> result = new();
+        //    string query = @"
+        //        MATCH (x)-[:Has]-(p:Package{PackageID:$packageId})
+        //        RETURN
+        //        CASE LABELS(x)
+        //            WHEN ['PostOffice'] THEN ['PostOffice', x.PostalCode]
+        //            WHEN ['Courier'] THEN ['Courier', ID(x)]
+        //        END AS result
+        //    ";
+        //    var parameters = new { packageId };
+
+        //    try
+        //    {
+        //        result = await session.ExecuteReadAsync(async tx =>
+        //        {
+        //            IResultCursor cursor = await tx.RunAsync(query, parameters);
+        //            IRecord record = await cursor.SingleAsync();
+        //            return record["result"].As<List<string>>();
+        //        });
+        //    }
+        //    finally
+        //    {
+        //        await session.CloseAsync();
+        //    }
             
-            if (result != null) return Ok(result);
+        //    if (result != null) return Ok(result);
             
-            return BadRequest("Something went wrong determining package location!");
-        }
+        //    return BadRequest("Something went wrong determining package location!");
+        //}
 
 
         [Route("GetSentPackages/{email}")]

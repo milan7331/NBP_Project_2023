@@ -52,7 +52,6 @@ namespace NBP_Project_2023.Server.Controllers
             return BadRequest("User registration failed!");
         }
 
-
         [Route("GetCourier/{courierId}")]
         [HttpGet]
         public async Task<IActionResult> GetCourier(int courierId)
@@ -224,7 +223,9 @@ namespace NBP_Project_2023.Server.Controllers
                 MATCH (c:Courier WHERE ID(c) = $courierId)-[w:WorksAt]-(:PostOffice)
                 DELETE w
                 WITH c
-                MERGE (c)-[:WorksAt]-(:PostOffice{PostalCode:$newPostalCode})
+                MATCH (post:PostOffice)
+                WHERE post.PostalCode = $newPostalCode
+                MERGE (c)-[:WorksAt]-(post)
             ";
             var parameters = new
             {
@@ -262,6 +263,7 @@ namespace NBP_Project_2023.Server.Controllers
                 MATCH (courier:Courier WHERE ID(courier) = $courierId)
                 WITH courier
                 MATCH (post:PostOffice {PostalCode: courier.WorksAt})-[h:Has]-(package:Package {PackageID: $packageId})
+                SET package.PackageStatus = 'BeingDeliveredToDestination'
                 DELETE h
                 WITH courier, package
                 MERGE (courier)-[:Has]->(package)
@@ -303,6 +305,7 @@ namespace NBP_Project_2023.Server.Controllers
                 MATCH (package:Package {PackageID: $packageId})
                 WITH package
                 MATCH (user:User {Email: package.SenderEmail})-[h:Has]-(package)
+                SET package.PackageStatus = 'BeingDeliveredToPostOffice'
                 DELETE h
                 WITH user, package
                 MATCH (courier:Courier WHERE ID(courier) = $courierId)
@@ -342,8 +345,9 @@ namespace NBP_Project_2023.Server.Controllers
 
             bool result = false;
             string query = @"
-                MATCH (courier:Courier WHERE ID(courier) = $courierId)-[r]-(package:Package {PackageID: $packageId})
-                DELETE r
+                MATCH (courier:Courier WHERE ID(courier) = $courierId)-[h:Has]-(package:Package {PackageID: $packageId})
+                SET package.PackageStatus = 'AtPostOffice'
+                DELETE h
                 WITH courier, package
                 MATCH (post:PostOffice)
                 WHERE post.PostalCode = courier.WorksAt
@@ -382,8 +386,9 @@ namespace NBP_Project_2023.Server.Controllers
 
             bool result = false;
             string query = @"
-                MATCH (courier:Courier WHERE ID(courier) = $courierId)-[r]-(package:Package {PackageID: $packageId})
-                DELETE r
+                MATCH (courier:Courier WHERE ID(courier) = $courierId)-[h:Has]-(package:Package {PackageID: $packageId})
+                SET package.PackageStatus = 'Delivered'
+                DELETE h
                 WITH courier, package
                 MATCH (user:UserAccount)
                 WHERE user.PostalCode = courier.WorksAt AND user.Email = package.ReceiverEmail
