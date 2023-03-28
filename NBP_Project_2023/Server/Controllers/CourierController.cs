@@ -52,43 +52,6 @@ namespace NBP_Project_2023.Server.Controllers
             return BadRequest("User registration failed!");
         }
 
-        [Route("AddWorkplace/{courierId}/{postalCode}")]
-        [HttpPost]
-        public async Task<IActionResult> AddWorkplace(int courierId, int postalCode)
-        {
-            IAsyncSession session = _driver.AsyncSession();
-
-            bool result;
-            string query = @"
-                MATCH (c:Courier WHERE ID(c) = $courierId)
-                WITH c
-                MATCH (p:PostOffice{PostalCode:$postalCode})
-                MERGE (c)-[:WorksAt]-(p)
-            ";
-            var parameters = new
-            {
-                courierId,
-                postalCode
-            };
-
-            try
-            {
-                result = await session.ExecuteWriteAsync(async tx =>
-                {
-                    IResultCursor cursor = await tx.RunAsync(query, parameters);
-                    IResultSummary summary = await cursor.ConsumeAsync();
-                    if(summary.Counters.RelationshipsCreated > 0) return true;
-                    return false;
-                });
-            }
-            finally {
-                await session.CloseAsync();
-            }
-
-            if (result) return Ok("Courier workplace added!");
-            
-            return BadRequest("Something went wrong adding courier workplace!");
-        }
 
         [Route("GetCourier/{courierId}")]
         [HttpGet]
@@ -288,23 +251,25 @@ namespace NBP_Project_2023.Server.Controllers
             return BadRequest("Something went wrong changing the workplace!");
         }
 
-        [Route("DeliverPackageToPostOffice/{courierId}/{packageId}")]
+        [Route("PickupPackageFromPostOffice/{courierId}/{packageId}")]
         [HttpPut]
-        public async Task<IActionResult> DeliverPackageToPostOffice(int courierId, string packageId)
+        public async Task<IActionResult> PickupPackageFromPostOffice(int courierId, string packageId)
         {
             IAsyncSession session = _driver.AsyncSession();
 
-            bool result;
+            bool result = false;
             string query = @"
-                MATCH (c:Courier WHERE ID(c) = $courierId)-[h:Has]-(p:Package{PackageID:$packageId})
+                MATCH (courier:Courier WHERE ID(courier) = $courierId)
+                WITH courier
+                MATCH (post:PostOffice {PostalCode: courier.WorksAt})-[h:Has]-(package:Package {PackageID: $packageId})
                 DELETE h
-                WITH c, p
-                MATCH (c)-[:WorksAt]-(post:PostOffice)
-                MERGE (post)-[:Has]-(p)
+                WITH courier, package
+                MERGE (courier)-[:Has]->(package)
             ";
             var parameters = new
             {
-                packageId, courierId
+                courierId,
+                packageId 
             };
 
             try
@@ -322,9 +287,132 @@ namespace NBP_Project_2023.Server.Controllers
                 await session.CloseAsync();
             }
 
-            if (result) return Ok("Package delivered successfully!");
-            
-            return BadRequest("Something went wrong delivering package!");
+            if (result) return Ok("Package picked up from post office successfully!");
+
+            return BadRequest("Something went wrong picking up package from post office!");
+        }
+
+        [Route("PickupPackageFromSender/{courierId}/{packageId}")]
+        [HttpPut]
+        public async Task<IActionResult> PickupPackageFromSender(int courierId, string packageId)
+        {
+            IAsyncSession session = _driver.AsyncSession();
+
+            bool result = false;
+            string query = @"
+                MATCH (package:Package {PackageID: $packageId})
+                WITH package
+                MATCH (user:User {Email: package.SenderEmail})-[h:Has]-(package)
+                DELETE h
+                WITH user, package
+                MATCH (courier:Courier WHERE ID(courier) = $courierId)
+                MERGE (courier)-[:Has]->(package)
+            ";
+            var parameters = new
+            {
+                courierId,
+                packageId
+            };
+
+            try
+            {
+                result = await session.ExecuteWriteAsync(async tx =>
+                {
+                    IResultCursor cursor = await tx.RunAsync(query, parameters);
+                    IResultSummary summary = await cursor.ConsumeAsync();
+                    if (summary.Counters.RelationshipsDeleted == 1 && summary.Counters.RelationshipsCreated == 1) return true;
+                    return false;
+                });
+            }
+            finally
+            {
+                await session.CloseAsync();
+            }
+
+            if (result) return Ok("Package picked up from sender successfully!");
+
+            return BadRequest("Something went wrong picking up package from sender!");
+        }
+
+        [Route("DeliverPackageToPostOffice/{courierId}/{packageId}")]
+        [HttpPut]
+        public async Task<IActionResult> DeliverPackageToPostOffice(int courierId, string packageId)
+        {
+            IAsyncSession session = _driver.AsyncSession();
+
+            bool result = false;
+            string query = @"
+                MATCH (courier:Courier WHERE ID(courier) = $courierId)-[r]-(package:Package {PackageID: $packageId})
+                DELETE r
+                WITH courier, package
+                MATCH (post:PostOffice)
+                WHERE post.PostalCode = courier.WorksAt
+                MERGE (post)-[:Has]->(package)
+            ";
+            var parameters = new
+            {
+                courierId, packageId
+            };
+
+            try
+            {
+                result = await session.ExecuteWriteAsync(async tx =>
+                {
+                    IResultCursor cursor = await tx.RunAsync(query, parameters);
+                    IResultSummary summary = await cursor.ConsumeAsync();
+                    if (summary.Counters.RelationshipsDeleted == 2 && summary.Counters.RelationshipsCreated == 1) return true;
+                    return false;
+                });
+            }
+            finally
+            {
+                await session.CloseAsync();
+            }
+
+            if (result) return Ok("Package delivered to post office successfully!");
+
+            return BadRequest("Something went wrong delivering package to post office!");
+        }
+
+        [Route("DeliverPackageToDestination/{courierId}/{packageId}")]
+        [HttpPut]
+        public async Task<IActionResult> DeliverPackageToDestination(int courierId, string packageId)
+        {
+            IAsyncSession session = _driver.AsyncSession();
+
+            bool result = false;
+            string query = @"
+                MATCH (courier:Courier WHERE ID(courier) = $courierId)-[r]-(package:Package {PackageID: $packageId})
+                DELETE r
+                WITH courier, package
+                MATCH (user:UserAccount)
+                WHERE user.PostalCode = courier.WorksAt AND user.Email = package.ReceiverEmail
+                MERGE (user)-[:Has]->(package)
+            ";
+            var parameters = new
+            {
+                courierId,
+                packageId
+            };
+
+            try
+            {
+                result = await session.ExecuteWriteAsync(async tx =>
+                {
+                    IResultCursor cursor = await tx.RunAsync(query, parameters);
+                    IResultSummary summary = await cursor.ConsumeAsync();
+                    if (summary.Counters.RelationshipsDeleted == 2 && summary.Counters.RelationshipsCreated == 1) return true;
+                    return false;
+                });
+            }
+            finally
+            {
+                await session.CloseAsync();
+            }
+
+            if (result) return Ok("Package delivered to user successfully!");
+
+            return BadRequest("Something went wrong delivering package to user!");
         }
 
         [Route("DeleteCourier/{courierId}")]

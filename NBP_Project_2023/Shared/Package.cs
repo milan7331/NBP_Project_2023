@@ -3,8 +3,9 @@
     public enum PackageState
     {
         WaitingForPickup,
-        InTransit,
+        BeingDeliveredToPostOffice,
         AtPostOffice,
+        BeingDeliveredToDestination,
         Delivered
     }
 

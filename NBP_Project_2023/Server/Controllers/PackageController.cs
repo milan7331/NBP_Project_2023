@@ -64,53 +64,105 @@ namespace NBP_Project_2023.Server.Controllers
 
             if (result == 1)
             {
-                await AssignCreatedPackage(package.PackageID);
-                return Ok("Package created and linked successfuly!");
+                await LinkPackageToSender(package.PackageID);
+                await AssignPackageToCourier(package.PackageID);
+                return Ok("Package created, linked and assigned successfuly!");
             }
             
             return BadRequest("Error creating package!");
         }
+        [Route("LinkPackageToSender/{packageId}")]
+        [HttpPost]
+        public async Task<IActionResult> LinkPackageToSender(string packageId)
+        {
+            IAsyncSession session = _driver.AsyncSession();
+            bool result = false;
+
+            string query = @"
+                MATCH (package:Package)
+                WHERE package.PackageID = $packageId
+                WITH package
+                MATCH (user:UserAccount)
+                WHERE user.Email = package.SenderEmail
+                MERGE (user)-[:Has]->(package)
+            ";
+
+            var parameters = new { packageId };
+
+            try
+            {
+                result = await session.ExecuteWriteAsync(async tx =>
+                {
+                    IResultCursor cursor = await tx.RunAsync(query, parameters);
+                    IResultSummary summary = await cursor.ConsumeAsync();
+                    return summary.Counters.RelationshipsCreated == 1;
+                });
+            }
+            finally
+            {
+                await session.CloseAsync();
+            }
+
+            if (result)
+            {
+                return Ok("Package linked to sender");
+            }
+
+            return BadRequest("Error linking package to sender!");
+        }
+
+
 
         // novokreirana pošiljka se dodeljuje na listu taskova odabranom kuriru
         // proverava se da li postoji slobodan kurir bez posla i dodeljuje se njemu
         // u suprotnom se dodaje kuriru koji ima najmanje trenutnih taskova (pošiljki)
         // i na kraju ako ni jedan od uslova nije ispunjen dodaje se task kuriru koji trenutno ne radi
         // jer paketi moraju negde da se povežu a moguće je da vikendom niko ne radi recimo
-        [Route("AssignCreatedPackage/{packageId}")]
+        [Route("AssignPackageToCourier/{packageId}")]
         [HttpPost]
-        public async Task<IActionResult> AssignCreatedPackage(string packageId)
+        public async Task<IActionResult> AssignPackageToCourier(string packageId)
         {
             IAsyncSession session = _driver.AsyncSession();
             bool result = false;
 
             string availableQuery = @"
-                MATCH (c:Courier)
-                WHERE c.CourierStatus = 'Available'
-                WITH c, rand() AS r
+                MATCH (user:UserAccount)-[:Has]->(package:Package)
+                WHERE package.PackageID = $packageId
+                WITH user
+                MATCH (courier:Courier)
+                WHERE courier.CourierStatus = 'Available' AND courier.WorksAt = user.PostalCode
+                WITH courier, rand() AS r
                 ORDER BY r
                 LIMIT 1
-                MATCH (p:Package {PackageID: $packageId})
-                MERGE (c)-[:PackageList]->(p)
+                MATCH (package:Package {PackageID: $packageId})
+                MERGE (courier)-[:CollectionList]->(package)
             ";
             string workingQuery = @"
-                MATCH (c:Courier)
-                WHERE c.CourierStatus = 'Working'
-                OPTIONAL MATCH (c)-[list:PackageList]-()
-                WITH c, COUNT(list) AS listCount
+                MATCH (user:UserAccount)-[:Has]->(package:Package)
+                WHERE package.PackageID = $packageId
+                WITH user
+                MATCH (courier:Courier)
+                WHERE courier.CourierStatus = 'Working' AND courier.WorksAt = user.PostalCode
+                OPTIONAL MATCH (courier)-[list:CollectionList|DeliveryList]-()
+                WITH courier, COUNT(list) AS listCount
                 ORDER BY listCount
                 LIMIT 1
-                MATCH (p:Package {PackageID: $packageId})
-                MERGE (c)-[:PackageList]->(p)
+                MATCH (package:Package {PackageID: $packageId})
+                MERGE (courier)-[:CollectionList]->(package)
+
             ";
             string awayQuery = @"
-                MATCH (c:Courier)
-                WHERE c.CourierStatus = 'Away'
-                OPTIONAL MATCH (c)-[list:PackageList]-()
-                WITH c, COUNT(list) AS listCount
+                MATCH (user:UserAccount)-[:Has]->(package:Package)
+                WHERE package.PackageID = $packageId
+                WITH user
+                MATCH (courier:Courier)
+                WHERE courier.CourierStatus = 'Away' AND courier.WorksAt = user.PostalCode
+                OPTIONAL MATCH (courier)-[list:CollectionList|DeliveryList]-()
+                WITH courier, COUNT(list) AS listCount
                 ORDER BY listCount
                 LIMIT 1
-                MATCH (p:Package {PackageID: $packageId})
-                MERGE (c)-[:PackageList]->(p)
+                MATCH (package:Package {PackageID: $packageId})
+                MERGE (courier)-[:CollectionList]->(package)
             ";
 
             var parameters = new { packageId };
@@ -146,7 +198,6 @@ namespace NBP_Project_2023.Server.Controllers
 
             return BadRequest("Error assigning package!");
         }
-
 
         [Route("GetPackage/{packageId}")]
         [HttpGet]
@@ -265,6 +316,7 @@ namespace NBP_Project_2023.Server.Controllers
             return BadRequest("Something went wrong determining package location!");
         }
 
+
         [Route("GetSentPackages/{email}")]
         [HttpGet]
         public async Task<IActionResult> GetSentPackages(string email)
@@ -362,18 +414,24 @@ namespace NBP_Project_2023.Server.Controllers
         }
 
 
-        // vraća listu svih pošilki koje kurir treba da odradi
+        // vraća dve liste svih pošilki koje kurir treba da odradi
         [Route("GetCourierPackageList/{courierId}")]
         [HttpGet]
         public async Task<IActionResult> GetCourierPackageList(int courierId)
         {
             IAsyncSession session = _driver.AsyncSession();
 
-            List<Package> result = new();
+            List<Package> collectionPackages = new();
+            List<Package> deliveryPackages = new();
+
             string query = @"
-                MATCH (c:Courier)-[:PackageList]-(p:Package)
+                MATCH (c:Courier)-[:CollectionList]-(p:Package)
                 WHERE ID(c) = $courierId
-                RETURN p AS package 
+                RETURN p AS package, 'collection' AS type
+                UNION
+                MATCH (c:Courier)-[:DeliveryList]-(p:Package)
+                WHERE ID(c) = $courierId
+                RETURN p AS package, 'delivery' AS type
             ";
 
             var parameters = new { courierId };
@@ -400,7 +458,14 @@ namespace NBP_Project_2023.Server.Controllers
                             EstimatedArrivalDate = p.Properties["EstimatedArrivalDate"].As<DateTime>(),
                             PackageStatus = p.Properties["PackageStatus"].As<string>()
                         };
-                        result.Add(package);
+                        if (record["type"].As<string>() == "collection")
+                        {
+                            collectionPackages.Add(package);
+                        }
+                        else
+                        {
+                            deliveryPackages.Add(package);
+                        }
                     }
                 });
             }
@@ -408,6 +473,12 @@ namespace NBP_Project_2023.Server.Controllers
             {
                 await session.CloseAsync();
             }
+
+            var result = new
+            {
+                CollectionPackages = collectionPackages,
+                DeliveryPackages = deliveryPackages
+            };
 
             return Ok(result);
         }
