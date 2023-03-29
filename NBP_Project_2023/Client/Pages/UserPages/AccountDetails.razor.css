@@ -1,0 +1,71 @@
+﻿/* Styles for the main container */
+div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 1rem;
+}
+
+    /* Styles for the user information section */
+    div > div:first-of-type {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+        div > div:first-of-type > div {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+            div > div:first-of-type > div h5 {
+                margin-right: 0.5rem;
+            }
+
+/* Styles for the edit form section */
+form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+div > form > div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+    div > form > div label {
+        margin-bottom: 0.5rem;
+    }
+
+    div > form > div input {
+        width: 100%;
+        padding: 0.5rem;
+        font-size: 1rem;
+        border-radius: 0.25rem;
+        border: 1px solid #ccc;
+    }
+
+div > form > button {
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    border-radius: 0.25rem;
+    border: none;
+    background-color: #007bff;
+    color: #fff;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+    div > form > button:hover {
+        background-color: #0069d9;
+    }
+
+.alert {
+    color: red;
+}

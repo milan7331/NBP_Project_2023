@@ -358,7 +358,7 @@ namespace NBP_Project_2023.Server.Controllers
         public async Task<IActionResult> ProcessPackageAtPostOffice(string packageId)
         {
             // treba da se zove prilikom drop of paketa od strane kurira i takođe u else grani na kraju
-            bool result = false;
+            bool result;
             bool packageAtDestination = await CheckIfPackageIsAtDestinationPostOffice(packageId);
 
             if(packageAtDestination)
@@ -417,13 +417,13 @@ namespace NBP_Project_2023.Server.Controllers
             return BadRequest("Something went wrong registering package!");
         }
 
-        [Route("RegisterWorker/{postalCode}/{workerId}")]
+        [Route("RegisterWorker/{postalCode}/{courierId}")]
         [HttpPut]
         public async Task<IActionResult> RegisterWorker(int postalCode, int courierId)
         {
             IAsyncSession session = _driver.AsyncSession();
 
-            int result;
+            bool result = false;
             string query = @"
                 MATCH (p:PostOffice)
                 WHERE p.PostalCode = $postalCode
@@ -431,6 +431,7 @@ namespace NBP_Project_2023.Server.Controllers
                 MATCH (c:Courier)
                 WHERE ID(c) = $courierId
                 MERGE (c)-[:WorksAt]->(p)
+                SET c.WorksAt = p.PostalCode
             ";
             var parameters = new
             {
@@ -444,7 +445,7 @@ namespace NBP_Project_2023.Server.Controllers
                 {
                     IResultCursor cursor = await tx.RunAsync(query, parameters);
                     IResultSummary summary = await cursor.ConsumeAsync();
-                    return summary.Counters.RelationshipsCreated;
+                    return (summary.Counters.RelationshipsCreated == 1);
                 });
             }
             finally
@@ -452,7 +453,7 @@ namespace NBP_Project_2023.Server.Controllers
                 await session.CloseAsync();
             }
             
-            if (result == 1) return Ok("Courier registered");
+            if (result) return Ok("Courier registered");
             
             return BadRequest("Something went wrong registering courier!");
         }

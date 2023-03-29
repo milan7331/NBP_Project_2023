@@ -133,7 +133,8 @@ namespace NBP_Project_2023.Server.Controllers
                 WITH courier, rand() AS r
                 ORDER BY r
                 LIMIT 1
-                MATCH (package:Package {PackageID: $packageId})
+                MATCH (package:Package)
+                WHERE package.PackageID = $packageId
                 MERGE (courier)-[:CollectionList]->(package)
             ";
             string workingQuery = @"
@@ -146,7 +147,8 @@ namespace NBP_Project_2023.Server.Controllers
                 WITH courier, COUNT(list) AS listCount
                 ORDER BY listCount
                 LIMIT 1
-                MATCH (package:Package {PackageID: $packageId})
+                MATCH (package:Package)
+                WHERE  package.PackageID = $packageId
                 MERGE (courier)-[:CollectionList]->(package)
 
             ";
@@ -160,7 +162,8 @@ namespace NBP_Project_2023.Server.Controllers
                 WITH courier, COUNT(list) AS listCount
                 ORDER BY listCount
                 LIMIT 1
-                MATCH (package:Package {PackageID: $packageId})
+                MATCH (package:Package)
+                WHERE package.PackageID = $packageId
                 MERGE (courier)-[:CollectionList]->(package)
             ";
 

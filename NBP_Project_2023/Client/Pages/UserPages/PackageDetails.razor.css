@@ -1,0 +1,32 @@
+﻿h3 {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+}
+
+h5 {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+h6 {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+}
+
+span {
+    font-size: 1rem;
+    color: red;
+    margin-bottom: 1rem;
+}
+
+div {
+    margin-bottom: 1rem;
+}
+
+NavLink {
+    font-size: 1rem;
+    color: blue;
+    text-decoration: none;
+}

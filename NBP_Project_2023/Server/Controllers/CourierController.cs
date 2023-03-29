@@ -252,27 +252,24 @@ namespace NBP_Project_2023.Server.Controllers
             return BadRequest("Something went wrong changing the workplace!");
         }
 
-        [Route("PickupPackageFromPostOffice/{courierId}/{packageId}")]
+        [Route("PickupPackageFromPostOffice/{packageId}")]
         [HttpPut]
-        public async Task<IActionResult> PickupPackageFromPostOffice(int courierId, string packageId)
+        public async Task<IActionResult> PickupPackageFromPostOffice(string packageId)
         {
             IAsyncSession session = _driver.AsyncSession();
 
             bool result = false;
             string query = @"
-                MATCH (courier:Courier WHERE ID(courier) = $courierId)
-                WITH courier
-                MATCH (post:PostOffice {PostalCode: courier.WorksAt})-[h:Has]-(package:Package {PackageID: $packageId})
-                SET package.PackageStatus = 'BeingDeliveredToDestination'
+                MATCH (courier:Courier)-[:DeliveryList]-(package:Package)
+                WHERE package.PackageID = $packageId
+                SET courier.CourierStatus = 'Working', package.PackageStatus = 'BeingDeliveredToDestination'
+                WITH courier, package
+                MATCH (package)-[h:Has]-()
                 DELETE h
                 WITH courier, package
                 MERGE (courier)-[:Has]->(package)
             ";
-            var parameters = new
-            {
-                courierId,
-                packageId 
-            };
+            var parameters = new { packageId };
 
             try
             {
@@ -294,28 +291,24 @@ namespace NBP_Project_2023.Server.Controllers
             return BadRequest("Something went wrong picking up package from post office!");
         }
 
-        [Route("PickupPackageFromSender/{courierId}/{packageId}")]
+        [Route("PickupPackageFromSender/{packageId}")]
         [HttpPut]
-        public async Task<IActionResult> PickupPackageFromSender(int courierId, string packageId)
+        public async Task<IActionResult> PickupPackageFromSender(string packageId)
         {
             IAsyncSession session = _driver.AsyncSession();
 
             bool result = false;
             string query = @"
-                MATCH (package:Package {PackageID: $packageId})
-                WITH package
-                MATCH (user:User {Email: package.SenderEmail})-[h:Has]-(package)
-                SET package.PackageStatus = 'BeingDeliveredToPostOffice'
+                MATCH (courier:Courier)-[:CollectionList]-(package:Package)
+                WHERE package.PackageID = $packageId
+                SET courier.CourierStatus = 'Working', package.PackageStatus = 'BeingDeliveredToPostOffice'
+                WITH package, courier
+                MATCH (package)-[h:Has]-()
                 DELETE h
-                WITH user, package
-                MATCH (courier:Courier WHERE ID(courier) = $courierId)
+                WITH package, courier
                 MERGE (courier)-[:Has]->(package)
             ";
-            var parameters = new
-            {
-                courierId,
-                packageId
-            };
+            var parameters = new { packageId };
 
             try
             {
@@ -337,26 +330,24 @@ namespace NBP_Project_2023.Server.Controllers
             return BadRequest("Something went wrong picking up package from sender!");
         }
 
-        [Route("DeliverPackageToPostOffice/{courierId}/{packageId}")]
+        [Route("DeliverPackageToPostOffice/{packageId}")]
         [HttpPut]
-        public async Task<IActionResult> DeliverPackageToPostOffice(int courierId, string packageId)
+        public async Task<IActionResult> DeliverPackageToPostOffice(string packageId)
         {
             IAsyncSession session = _driver.AsyncSession();
 
             bool result = false;
             string query = @"
-                MATCH (courier:Courier WHERE ID(courier) = $courierId)-[h:Has]-(package:Package {PackageID: $packageId})
-                SET package.PackageStatus = 'AtPostOffice'
+                MATCH (courier:Courier)-[h]-(package:Package)
+                WHERE package.PackageID = $packageId
+                SET package.PackageStatus = 'AtPostOffice', courier.CourierStatus = 'Available'
                 DELETE h
                 WITH courier, package
                 MATCH (post:PostOffice)
                 WHERE post.PostalCode = courier.WorksAt
                 MERGE (post)-[:Has]->(package)
             ";
-            var parameters = new
-            {
-                courierId, packageId
-            };
+            var parameters = new { packageId };
 
             try
             {
@@ -378,27 +369,24 @@ namespace NBP_Project_2023.Server.Controllers
             return BadRequest("Something went wrong delivering package to post office!");
         }
 
-        [Route("DeliverPackageToDestination/{courierId}/{packageId}")]
+        [Route("DeliverPackageToDestination/{packageId}")]
         [HttpPut]
-        public async Task<IActionResult> DeliverPackageToDestination(int courierId, string packageId)
+        public async Task<IActionResult> DeliverPackageToDestination(string packageId)
         {
             IAsyncSession session = _driver.AsyncSession();
 
             bool result = false;
             string query = @"
-                MATCH (courier:Courier WHERE ID(courier) = $courierId)-[h:Has]-(package:Package {PackageID: $packageId})
-                SET package.PackageStatus = 'Delivered'
+                MATCH (courier:Courier)-[h]-(package:Package)
+                WHERE package.PackageID = $packageId
+                SET package.PackageStatus = 'Delivered', courier.CourierStatus = 'Available'
                 DELETE h
                 WITH courier, package
                 MATCH (user:UserAccount)
                 WHERE user.PostalCode = courier.WorksAt AND user.Email = package.ReceiverEmail
                 MERGE (user)-[:Has]->(package)
             ";
-            var parameters = new
-            {
-                courierId,
-                packageId
-            };
+            var parameters = new { packageId };
 
             try
             {

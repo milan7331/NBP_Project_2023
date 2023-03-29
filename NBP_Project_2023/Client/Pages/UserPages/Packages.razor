@@ -25,8 +25,8 @@ else
     <table>
         <thead>
             <tr>
-                <th>Broj za praćenje paketa</th>
                 <th>Sadržaj paketa</th>
+                <th>Broj za praćenje paketa</th>
                 <th>Očekivano vreme isporuke</th>
                 <th></th>
             </tr>
@@ -35,9 +35,9 @@ else
             @foreach (Package package in packages)
             {
                 <tr>
-                    <td>@package.PackageID</td>
                     <td>@package.Content</td>
-                    <td>@package.EstimatedArrivalDate</td>
+                    <td>@package.PackageID</td>
+                    <td>@package.EstimatedArrivalDate.ToShortDateString()</td>
                     <td>
                         <button @onclick="() => GetPackageDetails(package.PackageID)">Detaljnije o pošiljci</button>
                     </td>

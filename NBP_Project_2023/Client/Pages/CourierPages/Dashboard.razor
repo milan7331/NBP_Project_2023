@@ -4,6 +4,7 @@
 @inject HttpClient HttpClient
 @implements IDisposable
 @using NBP_Project_2023.Shared
+@using Newtonsoft.Json
 
 <PageTitle>Dashboard</PageTitle>
 <h3>Dashboard</h3>
@@ -15,7 +16,7 @@
 else
 {
     <button @onclick=GetCourierPackages>
-        @if (packages.Count < 1)
+        @if (collectionPackages.Count < 1 || deliveryPackages.Count < 1)
         {
             <span>Učitaj pošiljke</span>
         }
@@ -27,10 +28,47 @@ else
     <button @onclick=ToggleCourierShift>Završi smenu</button>
     
     <br />
+    @if(message != string.Empty)
+    {
+        <span>@message</span>
+        <br />
+    }
 
-    @if(packages.Count > 0)
+
+    @if(collectionPackages.Count > 0)
     {
         <div>
+        <h3>Pošiljke koje treba pokupiti</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Sadržaj</th>
+                        <th>ID pošiljke</th>
+                        <th>Status pošiljke</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (Package package in collectionPackages)
+                    {
+                        <tr>
+                            <td>@package.Content</td>
+                            <td>@package.PackageID</td>
+                            <td>@package.PackageStatus</td>
+                            <td>
+                                <button>Detalji i opcije</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    @if (deliveryPackages.Count > 0)
+    {
+        <div>
+            <h3>Pošiljke koje treba isporučiti</h3>
             <table>
                 <thead>
                     <tr>
@@ -39,24 +77,46 @@ else
                         <th>Sadržaj</th>
                         <th></th>
                         <th></th>
+
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (Package package in packages)
+                    @foreach (Package package in deliveryPackages)
                     {
                         <tr>
                             <td>@package.PackageID</td>
                             <td>@package.PackageStatus</td>
                             <td>@package.Content</td>
                             <td>
-                                <button>Detalji i opcije</button>
+                                <button @onclick="() => GetPackageDetails(package.PackageID)">Detaljnije o pošiljci</button>
                             </td>
                             <td>
+                                <button @onclick="() => ProcessPackage(package)">
+                                    @switch (package.PackageStatus)
+                                    {
+                                        case "WaitingForPickup":
+                                            <span>Pokupi paket od pošiljaoca</span>
+                                            break;
 
+                                        case "BeingDeliveredToPostOffice":
+                                            <span>Dostavi paket u poštu</span>
+                                            break;
+
+                                        case "AtPostOffice":
+                                            <span>Pokupi paket iz pošte</span>
+                                            break;
+
+                                        case "BeingDeliveredToDestination":
+                                            <span>Dostavi paket pošiljaocu</span>
+                                            break;
+
+                                        default:
+                                            break;
+                                    }
+                                </button>
                             </td>
                         </tr>
                     }
-
                 </tbody>
             </table>
         </div>
@@ -65,7 +125,10 @@ else
 }
 
 @code {
-    private List<Package> packages = new();
+    private List<Package> collectionPackages = new();
+    private List<Package> deliveryPackages = new();
+    private string message = string.Empty;
+
 
     protected override Task OnInitializedAsync()
     {
@@ -98,24 +161,86 @@ else
 
     }
 
-    private async void GetCourierPackages()
+    private async Task GetCourierPackages()
     {
         var response = await HttpClient.GetAsync($"/api/Package/GetCourierPackageList/{AppState.Courier!.Id}");
 
         if(response.IsSuccessStatusCode)
         {
-            var content = await response.Content.ReadFromJsonAsync<List<Package>>();
-            if(content != null && content.Count > 0)
+            var result = await response.Content.ReadFromJsonAsync<CourierPackagesResponse>();
+
+            if(result != null)
             {
-                packages.AddRange(content);
+                if(result.CollectionPackages.Count > 0)
+                {
+                    collectionPackages.AddRange(result.CollectionPackages);
+                }
+
+                if(result.DeliveryPackages.Count > 0)
+                {
+                    deliveryPackages.AddRange(result.DeliveryPackages);
+                }
             }
         }
 
         StateHasChanged();
     }
 
+    private void GetPackageDetails(string id)
+    {
+        NavManager.NavigateTo($"packages/details/{id}");
+    }
+
+    private async void ProcessPackage(Package pkg)
+    {
+        string url = string.Empty;
+
+        switch (pkg.PackageStatus)
+        {
+            case "WaitingForPickup":
+                url = $"/api/Courier/PickupPackageFromSender/{pkg.PackageID}";
+                break;
+
+            case "BeingDeliveredToPostOffice":
+                url = $"/api/Courier/DeliverPackageToPostOffice/{pkg.PackageID}";
+                break;
+
+            case "AtPostOffice":
+                url = $"/api/Courier/PickupPackageFromPostOffice/{pkg.PackageID}";
+                break;
+
+            case "BeingDeliveredToDestination":
+                url = $"/api/Courier/DeliverPackageToDestination/{pkg.PackageID}";
+                break;
+
+            default:
+                break;
+        }
+        if(url != string.Empty)
+        {
+            var response = await HttpClient.GetAsync(url);
+
+            if (response.IsSuccessStatusCode)
+            {
+                await GetCourierPackages();
+                message = string.Empty;
+            }
+            else
+            {
+                message = "Pažnja došlo je do greške!";
+                StateHasChanged();
+            }
+        }
+    }
+
     public void Dispose()
     {
         AppState.OnStateChange -= StateHasChanged;
+    }
+
+    public class CourierPackagesResponse
+    {
+        public List<Package> CollectionPackages { get; set; } = new();
+        public List<Package> DeliveryPackages { get; set; } = new();
     }
 }

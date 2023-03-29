@@ -9,7 +9,7 @@
 <h3>Detalji pošiljke</h3>
 
 <div>
-    @if (packageID == string.Empty || AppState.AccountType != AccountTypeEnum.User || AppState.UserAccount == null)
+    @if (packageID == string.Empty || AppState.AccountType == AccountTypeEnum.NoAccount)
     {
         <span>Detalji pošiljke ne mogu biti učitani došlo je do greške!</span>
     }
@@ -46,7 +46,11 @@
             </div>
 
             <div>
-                <h5>Očekivano vreme prispeća (valjda se tako kaže?): </h5> <h6>@package.EstimatedArrivalDate</h6>
+                <h5>Status pošiljke:</h5> <h6>@package.PackageStatus</h6>
+            </div>
+
+            <div>
+                <h5>Očekivano vreme prispeća: </h5> <h6>@package.EstimatedArrivalDate.ToShortDateString()</h6>
             </div>
         }
         else if (@message != string.Empty)
@@ -57,9 +61,8 @@
         {
             <span>Učitavanje...</span>
         }
-
-        <button class="btn btn-primary" @onclick="() => NavManager.NavigateTo(route)">Nazad na pošiljke</button>
-        <NavLink href="/packages">Nazad na pošiljke</NavLink>
+        <br />
+        <NavLink @onclick=ReturnToPackges>Nazad na pošiljke</NavLink>
     }
 </div>
 
@@ -69,15 +72,26 @@
 
     private Package? package { get; set; }
 
-    private string route = "/packages";
-
     private string message = string.Empty;
 
     protected override Task OnParametersSetAsync()
     {
-        if (packageID == string.Empty || AppState.AccountType != AccountTypeEnum.User || AppState.UserAccount == null)
+        switch(AppState.AccountType)
         {
-            NavManager.NavigateTo("/login/user");
+            case AccountTypeEnum.NoAccount:
+                NavManager.NavigateTo("/");
+                break;
+
+            case AccountTypeEnum.User:
+                if (AppState.UserAccount == null || packageID == string.Empty)
+                    NavManager.NavigateTo("/packages");
+                break;
+
+            case AccountTypeEnum.Courier:
+                if (AppState.Courier == null || packageID == string.Empty)
+                NavManager.NavigateTo("/dashboard");
+                break;
+
         }
         LoadPackageDetails(packageID);
         return base.OnParametersSetAsync();
@@ -102,5 +116,17 @@
             message = "Došlo je do greške! Detalji pošiljke nisu dostupni!";
         }
         StateHasChanged();
+    }
+
+    private void ReturnToPackges()
+    {
+        if(AppState.AccountType == AccountTypeEnum.User)
+        {
+            NavManager.NavigateTo("/packages");
+        }
+        if(AppState.AccountType == AccountTypeEnum.Courier)
+        {
+            NavManager.NavigateTo("/dashboard");
+        }
     }
 }
