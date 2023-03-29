@@ -52,11 +52,36 @@ else
                     @foreach (Package package in collectionPackages)
                     {
                         <tr>
-                            <td>@package.Content</td>
                             <td>@package.PackageID</td>
                             <td>@package.PackageStatus</td>
+                            <td>@package.Content</td>
                             <td>
-                                <button>Detalji i opcije</button>
+                                <button @onclick="() => GetPackageDetails(package.PackageID)">Detaljnije o pošiljci</button>
+                            </td>
+                            <td>
+                                <button @onclick="() => ProcessPackage(package)">
+                                    @switch (package.PackageStatus)
+                                    {
+                                        case "WaitingForPickup":
+                                            <span>Pokupi paket od pošiljaoca</span>
+                                            break;
+
+                                        case "BeingDeliveredToPostOffice":
+                                            <span>Dostavi paket u poštu</span>
+                                            break;
+
+                                        case "AtPostOffice":
+                                            <span>Pokupi paket iz pošte</span>
+                                            break;
+
+                                        case "BeingDeliveredToDestination":
+                                            <span>Dostavi paket pošiljaocu</span>
+                                            break;
+
+                                        default:
+                                            break;
+                                    }
+                                </button>
                             </td>
                         </tr>
                     }
@@ -173,11 +198,13 @@ else
             {
                 if(result.CollectionPackages.Count > 0)
                 {
+                    collectionPackages.Clear();
                     collectionPackages.AddRange(result.CollectionPackages);
                 }
 
                 if(result.DeliveryPackages.Count > 0)
                 {
+                    deliveryPackages.Clear();
                     deliveryPackages.AddRange(result.DeliveryPackages);
                 }
             }

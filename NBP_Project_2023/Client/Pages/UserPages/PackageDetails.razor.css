@@ -30,3 +30,17 @@ NavLink {
     color: blue;
     text-decoration: none;
 }
+
+button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 10px;
+}
+
+    button:hover {
+        background-color: #0069d9;
+    }
