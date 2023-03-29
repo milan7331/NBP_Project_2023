@@ -171,7 +171,7 @@ namespace NBP_Project_2023.Server.Controllers
             string query = @"
                 MATCH (u:UserAccount)
                 WHERE u.Email = $email
-                RETURN COUNT(u) > 0 AS node_exists
+                RETURN COUNT(u) AS node_count
             ";
             var parameters = new { email };
 
@@ -182,7 +182,7 @@ namespace NBP_Project_2023.Server.Controllers
                     IResultCursor cursor = await tx.RunAsync(query, parameters);
                     IRecord record = await cursor.SingleAsync();
 
-                    if (record != null && record["node_exists"].As<int>() > 0)
+                    if (record != null && record["node_count"].As<int>() > 0)
                     {
                         result = true;
                     }

@@ -24,18 +24,12 @@ namespace NBP_Project_2023.Server.Controllers
             int result;
             string query = @"
                 CREATE (p:PostOffice {PostalCode: $PostalCode})
-                SET p.City = $City,
-                p.X = $PostX,
-                p.Y = $PostY,
-                p.IsMainPostOffice = $IsMainPostOffice
+                SET p.City = $City
             ";
             var parameters = new
             {
                 post.PostalCode,
-                post.City,
-                post.PostX,
-                post.PostY,
-                post.IsMainPostOffice
+                post.City
             };
 
             try
@@ -144,9 +138,6 @@ namespace NBP_Project_2023.Server.Controllers
                         Id = Helper.GetIDfromINodeElementId(p.ElementId.As<string>()),
                         City = p.Properties["City"].As<string>(),
                         PostalCode = p.Properties["PostalCode"].As<int>(),
-                        PostX = p.Properties["X"].As<float>(),
-                        PostY = p.Properties["Y"].As<float>(),
-                        IsMainPostOffice = p.Properties["IsMainPostOffice"].As<bool>()
                     };
                 });
             }
@@ -168,9 +159,9 @@ namespace NBP_Project_2023.Server.Controllers
 
             List<int> ListOfWorkers;
             string query = @"
-                MATCH (p:PostOffice)-[:WorksAt]-(c:Courier)
-                WHERE p.PostalCode = $postalCode
-                RETURN ID(c) AS id
+                MATCH (courier:Courier)-[:WorksAt]-(post:PostOffice)
+                WHERE post.PostalCode = $postalCode
+                RETURN ID(courier) AS id
             ";
             var parameters = new { postalCode };
 
@@ -208,9 +199,9 @@ namespace NBP_Project_2023.Server.Controllers
 
             List<string> packages = new();
             string query = @"
-                MATCH (post:PostOffice)-[:Has]-(p:Package)
+                MATCH (post:PostOffice)-[:Has]-(package:Package)
                 WHERE post.PostalCode = $postalCode
-                RETURN p.PackageID AS pid
+                RETURN package.PackageID AS pid
             ";
             var parameters = new { postalCode };
 
@@ -250,19 +241,13 @@ namespace NBP_Project_2023.Server.Controllers
                 MATCH (p:PostOffice)
                 WHERE ID(p) = $Id
                 SET p.City = $City,
-                p.PostalCode = $PostalCode,
-                p.X = $PostX,
-                p.Y = $PostY,
-                p.IsMainPostOffice = $IsMainPostOffice
+                p.PostalCode = $PostalCode
             ";
             var parameters = new
             {
                 post.Id,
                 post.City,
-                post.PostalCode,
-                post.PostX,
-                post.PostY,
-                post.IsMainPostOffice
+                post.PostalCode
             };
 
             try
@@ -292,11 +277,13 @@ namespace NBP_Project_2023.Server.Controllers
 
             int result;
             string query = @"
-                MATCH (c:Courier WHERE ID(c) = $courierId)-[w:WorksAt]-(:PostOffice)
+                MATCH (courier:Courier)-[w:WorksAt]-(:PostOffice)
+                WHERE ID(courier) = $courierId
                 DELETE w
-                WITH c
-                MATCH (new:PostOffice{PostalCode:$newPostalCode})
-                MERGE (c)-[:WorksAt]-(new)
+                WITH courier
+                MATCH (new:PostOffice)
+                WHERE new.PostalCode = $newPostalCode
+                MERGE (courier)-[:WorksAt]-(new)
             ";
             var parameters = new
             {
@@ -397,7 +384,14 @@ namespace NBP_Project_2023.Server.Controllers
             IAsyncSession session = _driver.AsyncSession();
 
             int result;
-            string query = "MERGE (:PostOffice{PostalCode:$postalCode})-[:Has]-(:Package{PackageID:$packageId})";
+            string query = @"
+                MATCH (post:PostOffice)
+                WHERE post.PostalCode = $postalCode
+                WITH post
+                MATCH (package:Package)
+                WHERE package.PackageID = $packageId
+                MERGE (post)-[:Has]->(package)
+            ";
             var parameters = new
             { 
                 postalCode,
@@ -425,21 +419,23 @@ namespace NBP_Project_2023.Server.Controllers
 
         [Route("RegisterWorker/{postalCode}/{workerId}")]
         [HttpPut]
-        public async Task<IActionResult> RegisterWorker(int postalCode, int workerID)
+        public async Task<IActionResult> RegisterWorker(int postalCode, int courierId)
         {
             IAsyncSession session = _driver.AsyncSession();
 
             int result;
             string query = @"
-                MATCH (p:PostOffice{PostalCode:$postalCode})
+                MATCH (p:PostOffice)
+                WHERE p.PostalCode = $postalCode
                 WITH p
-                MATCH (c:Courier WHERE ID(c) = $workerID)
+                MATCH (c:Courier)
+                WHERE ID(c) = $courierId
                 MERGE (c)-[:WorksAt]->(p)
             ";
             var parameters = new
             {
                 postalCode,
-                workerID
+                courierId
             };
 
             try
@@ -463,14 +459,15 @@ namespace NBP_Project_2023.Server.Controllers
 
         [Route("DeletePostOffice/{postalCode}")]
         [HttpDelete]
-        //Bitno da je da u pošti koja se briše nema paketa i radnika!
+        // metoda briše poštu ukoliko ta pošta nema veze ka ostalim čvorovima // nije detach delete!
         public async Task<IActionResult> DeletePostOffice(int postalCode)
         {
             IAsyncSession session = _driver.AsyncSession();
 
             int result;
             string query = @"
-                MATCH (p:PostOffice WHERE p.PostalCode = $postalCode)
+                MATCH (p:PostOffice)
+                WHERE p.PostalCode = $postalCode
                 DELETE p
             ";
             var parameters = new { postalCode };
@@ -507,11 +504,7 @@ namespace NBP_Project_2023.Server.Controllers
                 WITH post, package
                 MATCH (user:UserAccount)
                 WHERE user.Email = package.ReceiverEmail AND user.PostalCode = post.PostalCode
-                RETURN
-                CASE
-                    WHEN user.PostalCode = post.PostalCode THEN True
-                    ELSE False
-                END AS SamePostalCode
+                RETURN COUNT(user) as count
             ";
             var parameters = new { packageId };
 
@@ -521,7 +514,7 @@ namespace NBP_Project_2023.Server.Controllers
                 {
                     IResultCursor cursor = await tx.RunAsync(query, parameters);
                     IRecord record = await cursor.SingleAsync();
-                    return record["SamePostalCode"].As<bool>();
+                    return record["count"].As<int>() > 0;
                 });
             }
             finally
@@ -546,7 +539,8 @@ namespace NBP_Project_2023.Server.Controllers
                 WITH courier, rand() AS r
                 ORDER BY r
                 LIMIT 1
-                MATCH (package:Package {PackageID: $packageId})
+                MATCH (package:Package)
+                WHERE package.PackageID = $packageId
                 MERGE (courier)-[:DeliveryList]->(package)
             ";
             string workingQuery = @"
@@ -559,7 +553,8 @@ namespace NBP_Project_2023.Server.Controllers
                 WITH courier, COUNT(list) AS listCount
                 ORDER BY listCount
                 LIMIT 1
-                MATCH (package:Package {PackageID: $packageId})
+                MATCH (package:Package)
+                WHERE package.PackageID = $packageId
                 MERGE (courier)-[:DeliveryList]->(package)
 
             ";
@@ -573,7 +568,8 @@ namespace NBP_Project_2023.Server.Controllers
                 WITH courier, COUNT(list) AS listCount
                 ORDER BY listCount
                 LIMIT 1
-                MATCH (package:Package {PackageID: $packageId})
+                MATCH (package:Package)
+                WHERE package.PackageID = $packageId
                 MERGE (courier)-[:DeliveryList]->(package)
             ";
 
