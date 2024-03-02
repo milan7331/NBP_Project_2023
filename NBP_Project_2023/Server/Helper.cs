@@ -1,4 +1,6 @@
-﻿namespace NBP_Project_2023.Server
+﻿using NBP_Project_2023.Shared;
+
+namespace NBP_Project_2023.Server
 {
     public static class Helper
     {
@@ -11,5 +13,7 @@
 
             return success ? number : -1;
         }
+
+
     }
 }
