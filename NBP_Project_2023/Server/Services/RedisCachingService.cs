@@ -5,11 +5,11 @@ using NBP_Project_2023.Shared;
 
 namespace NBP_Project_2023.Server.Services
 {
-    public class CachingService : IRedisCachingService //, IDisposable
+    public class RedisCachingService //: IRedisCachingService //, IDisposable
     {
-        private readonly ConnectionMultiplexer _redis;
+        private readonly IConnectionMultiplexer _redis;
 
-        public CachingService(ConnectionMultiplexer redis)
+        public RedisCachingService(IConnectionMultiplexer redis)
         {
             // add failed connetion error? /lmao
             // add alt methods for other access variations that dont go through the id
@@ -25,13 +25,20 @@ namespace NBP_Project_2023.Server.Services
             db = _redis.GetDatabase(1);
             value = await db.StringGetSetExpiryAsync($"{typeof(T).Name}:{key}", TimeSpan.FromHours(6.0));
 
-            if (value != RedisValue.Null)
+            if (value == RedisValue.Null)
             {
-                result = Deserialize<T>(value);
+                return null;
             }
-
+            result = Deserialize<T>(value);
             return result;           
         }
+
+        //public async Task<T?> GetCourierLoginDataAsync<T>(string firstName, string lastName) where T : class
+        //{
+        //    // specific wrapper method that checks for courier data in another set first and then uses
+        //    // the regular GetStringDataAsync<T>(string key) where T : class
+        //    T? result = default;
+        //}
 
         public async Task<bool> SetStringDataAsync<T>(string key, T value) where T : class
         {

@@ -1,0 +1,6 @@
+﻿what to do next:
+1. implement some sort of messaging between the courier and app user (pub/sub or whatever (look at the chatgpt history))
+2. implement redis caching on a wider scale
+3. separate the neo4j db access layer from the controllers and implement a service for it.
+4. flesh out the front end so it's an actual web app.
+5. improve error handling (it doesn't exist rn). 

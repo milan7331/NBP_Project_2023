@@ -1,3 +1,4 @@
+using NBP_Project_2023.Server.Services;
 using NBP_Project_2023.Shared;
 using Neo4j.Driver;
 using StackExchange.Redis;
@@ -20,6 +21,8 @@ builder.Services.AddSingleton(GraphDatabase.Driver(
 builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(
     ConnectionSetup.REDIS_URI
 ));
+builder.Services.AddSingleton<RedisCachingService>();
+
 
 var app = builder.Build();
 

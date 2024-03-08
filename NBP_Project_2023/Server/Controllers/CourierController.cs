@@ -1,6 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using NBP_Project_2023.Shared;
+using NBP_Project_2023.Server.Services;
 using Neo4j.Driver;
+
+
 
 namespace NBP_Project_2023.Server.Controllers
 {
@@ -9,10 +12,12 @@ namespace NBP_Project_2023.Server.Controllers
     public class CourierController : ControllerBase
     {
         private readonly IDriver _driver;
+        private readonly RedisCachingService _redisCachingService;
 
-        public CourierController(IDriver driver)
+        public CourierController(IDriver driver, RedisCachingService redisCachingService)
         {
             _driver = driver;
+            _redisCachingService = redisCachingService;
         }
 
         [Route("CreateCourier")]
@@ -56,9 +61,20 @@ namespace NBP_Project_2023.Server.Controllers
         [HttpGet]
         public async Task<IActionResult> GetCourier(int courierId)
         {
+            Courier? result = await _redisCachingService.GetStringDataAsync<Courier>(courierId.ToString());
+
+            if (result != null)
+            {
+                Console.WriteLine("redis blok je izvršen i ovo je vratio jebeni redis:\n");
+                Console.WriteLine($"{result.FirstName}:{result.LastName}:{result.Id}");
+                return Ok(result);
+            }
+
+            // if the object is not found in the cache retrieve it from the db and cache it in the end
+
             IAsyncSession session = _driver.AsyncSession();
 
-            Courier result;
+            
             string query = @"
                 MATCH (c:Courier WHERE ID(c) = $courierId)-[:WorksAt]-(p:PostOffice)
                 RETURN c, p.PostalCode as code
@@ -87,8 +103,12 @@ namespace NBP_Project_2023.Server.Controllers
             {
                 await session.CloseAsync();
             }
-            
-            if (result != null) return Ok(result);
+
+            if (result != null)
+            {
+                await _redisCachingService.SetStringDataAsync<Courier>(courierId.ToString(), result);
+                return Ok(result);
+            }
             
             return NotFound("This Courier doesn't exist!");
         }
