@@ -51,6 +51,14 @@ namespace NBP_Project_2023.Server.Services
             return await db.StringSetAsync($"{typeof(T).Name}:{key}", redisValue, TimeSpan.FromHours(6.0));
         }
 
+        public async Task<bool> DeleteStringDataAsync(string key)
+        {
+            IDatabase db;
+            db = _redis.GetDatabase(1);
+            return await db.KeyDeleteAsync(key);
+
+        }
+
         private static RedisValue Serialize<T>(T value) where T : class
         {
             return new RedisValue(JsonConvert.SerializeObject(value));

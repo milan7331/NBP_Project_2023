@@ -52,7 +52,11 @@ namespace NBP_Project_2023.Server.Controllers
                 await session.CloseAsync();
             }
 
-            if (result == 1) return Ok("User registered successfully!");
+            if (result == 1)
+            {
+                await _redisCachingService.SetStringDataAsync<Courier>(courier.Id.ToString(), courier);
+                return Ok("User registered successfully!");
+            }
 
             return BadRequest("User registration failed!");
         }
@@ -65,8 +69,6 @@ namespace NBP_Project_2023.Server.Controllers
 
             if (result != null)
             {
-                Console.WriteLine("redis blok je izvršen i ovo je vratio jebeni redis:\n");
-                Console.WriteLine($"{result.FirstName}:{result.LastName}:{result.Id}");
                 return Ok(result);
             }
 
@@ -113,6 +115,7 @@ namespace NBP_Project_2023.Server.Controllers
             return NotFound("This Courier doesn't exist!");
         }
 
+        // WORK NEEDED
         [Route("GetCourierLogin/{firstName}/{lastName}")]
         [HttpGet]
         public async Task<IActionResult> GetCourierLogin(string firstName, string lastName)
@@ -226,9 +229,13 @@ namespace NBP_Project_2023.Server.Controllers
             {
                 await session.CloseAsync();
             }
-            
-            if (result) return Ok($"User: {courier.FirstName} {courier.LastName} updated successfully!");
-            
+
+            if (result)
+            {
+                await _redisCachingService.SetStringDataAsync<Courier>(courier.Id.ToString(), courier);
+                return Ok($"User: {courier.FirstName} {courier.LastName} updated successfully!");
+            }
+
             return NotFound("The courier doesn't exist!");
         }
 
@@ -456,7 +463,11 @@ namespace NBP_Project_2023.Server.Controllers
                 await session.CloseAsync();
             }
 
-            if (result == 1) return Ok("Courier deleted successfully!");
+            if (result == 1)
+            {
+                await _redisCachingService.DeleteStringDataAsync(courierId.ToString());
+                return Ok("Courier deleted successfully!");
+            }
             
             return NotFound("Error deleting courier!");
         }
